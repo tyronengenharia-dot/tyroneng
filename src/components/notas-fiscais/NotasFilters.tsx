@@ -1,19 +1,41 @@
 'use client'
 
-export function NotasFilters({
-  type,
-  setType,
-  status,
-  setStatus,
-}: any) {
+interface Props {
+  search: string
+  setSearch: (v: string) => void
+  type: string
+  setType: (v: string) => void
+  status: string
+  setStatus: (v: string) => void
+}
+
+const inputClass =
+  'bg-white/5 border border-white/10 text-white placeholder:text-white/30 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-white/30 transition-colors'
+
+export function NotasFilters({ search, setSearch, type, setType, status, setStatus }: Props) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col md:flex-row gap-3 justify-between items-start md:items-center">
+      {/* Search */}
+      <div className="relative">
+        <svg
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30"
+          width="13" height="13" viewBox="0 0 16 16" fill="none"
+        >
+          <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+        <input
+          type="text"
+          placeholder="Buscar nota..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className={`${inputClass} pl-9 w-56`}
+        />
+      </div>
 
-      {/* TIPO */}
-      <div>
-        <p className="text-xs text-gray-500 mb-2">Tipo</p>
-
-        <div className="flex gap-2">
+      <div className="flex flex-wrap gap-3 items-center">
+        {/* Tipo */}
+        <div className="flex gap-1">
           {[
             { label: 'Todos', value: 'todos' },
             { label: 'Emitidas', value: 'emitida' },
@@ -22,23 +44,22 @@ export function NotasFilters({
             <button
               key={item.value}
               onClick={() => setType(item.value)}
-              className={`px-3 py-1 rounded-lg text-sm ${
+              className={`px-3.5 py-2 rounded-xl text-sm transition-colors ${
                 type === item.value
-                  ? 'bg-white text-black'
-                  : 'bg-[#111] text-gray-400 hover:text-white border border-white/10'
+                  ? 'bg-white text-black font-medium'
+                  : 'bg-white/5 border border-white/10 text-white/60 hover:bg-white/10'
               }`}
             >
               {item.label}
             </button>
           ))}
         </div>
-      </div>
 
-      {/* STATUS */}
-      <div>
-        <p className="text-xs text-gray-500 mb-2">Status</p>
+        {/* Divider */}
+        <div className="w-px h-5 bg-white/10" />
 
-        <div className="flex gap-2 flex-wrap">
+        {/* Status */}
+        <div className="flex gap-1">
           {[
             { label: 'Todos', value: 'todos' },
             { label: 'Aprovadas', value: 'aprovada' },
@@ -48,10 +69,10 @@ export function NotasFilters({
             <button
               key={item.value}
               onClick={() => setStatus(item.value)}
-              className={`px-3 py-1 rounded-lg text-sm ${
+              className={`px-3.5 py-2 rounded-xl text-sm transition-colors ${
                 status === item.value
-                  ? 'bg-white text-black'
-                  : 'bg-[#111] text-gray-400 hover:text-white border border-white/10'
+                  ? 'bg-white text-black font-medium'
+                  : 'bg-white/5 border border-white/10 text-white/60 hover:bg-white/10'
               }`}
             >
               {item.label}
@@ -59,7 +80,6 @@ export function NotasFilters({
           ))}
         </div>
       </div>
-
     </div>
   )
 }

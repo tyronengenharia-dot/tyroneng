@@ -1,7 +1,6 @@
 import { supabase } from '@/lib/supabaseClient'
 import { FinancialRecord } from '@/types/financial'
 
-
 export async function getFinancialRecords(page = 1, limit = 10) {
   const from = (page - 1) * limit
   const to = from + limit - 1
@@ -14,53 +13,57 @@ export async function getFinancialRecords(page = 1, limit = 10) {
 
   if (error) throw error
 
-  return { data, count }
+  return { data: data as FinancialRecord[], count }
 }
 
-async function handleFile(e: any) {
-  const file = e.target.files[0]
+export async function createFinancialRecord(record: Omit<FinancialRecord, 'id' | 'created_at'>) {
+  const { data, error } = await supabase
+    .from('financial_records')
+    .insert([record])
+    .select()
+    .single()
 
-  if (!file) return
-
-  const url = await uploadReceipt(file)
-
-  setForm({ ...form, receipt_url: url })
+  if (error) throw error
+  return data as FinancialRecord
 }
 
-export async function createFinancialRecord(record: any) {
-  return supabase.from('financial_records').insert([record])
-}
-
-export async function updateFinancialRecord(id: string, record: any) {
-  return supabase
+export async function updateFinancialRecord(
+  id: string,
+  record: Partial<Omit<FinancialRecord, 'id' | 'created_at'>>
+) {
+  const { data, error } = await supabase
     .from('financial_records')
     .update(record)
     .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as FinancialRecord
 }
 
 export async function deleteFinancialRecord(id: string) {
-  return supabase
+  const { error } = await supabase
     .from('financial_records')
     .delete()
     .eq('id', id)
-}
-
-export async function uploadReceipt(file: File) {
-  const filePath = `receipts/${Date.now()}-${file.name}`
-
-  const { data, error } = await supabase.storage
-    .from('receipts')
-    .upload(filePath, file)
 
   if (error) throw error
+}
 
-  const { data: publicUrl } = supabase.storage
+export async function uploadReceipt(file: File): Promise<string> {
+  const ext = file.name.split('.').pop()
+  const filePath = `receipts/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+  const { error: uploadError } = await supabase.storage
+    .from('receipts')
+    .upload(filePath, file, { upsert: false })
+
+  if (uploadError) throw uploadError
+
+  const { data } = supabase.storage
     .from('receipts')
     .getPublicUrl(filePath)
 
-  return publicUrl.publicUrl
-}
-
-function setForm(arg0: any) {
-  throw new Error('Function not implemented.')
+  return data.publicUrl
 }
