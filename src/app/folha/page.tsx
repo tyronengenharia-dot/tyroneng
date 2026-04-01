@@ -68,7 +68,7 @@ async function generateFolhaMensal() {
   fetchFolha()
 }
 
-const [folha, setFolha] = useState([])
+const [folha, setFolha] = useState<any[]>([])
 
 async function fetchFolha() {
   const { data, error } = await supabase
