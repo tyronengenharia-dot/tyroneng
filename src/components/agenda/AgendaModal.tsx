@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabaseClient'
 // ─── tipos ────────────────────────────────────────────────────────────────────
 
 type ChecklistItem = { id: string; text: string; done: boolean }
+type PessoaRef = { id: string; nome: string; contato: string }
 
 type FormState = {
   titulo: string
@@ -20,12 +21,10 @@ type FormState = {
   horaFim: string
   local: string
   endereco: string
-  responsavel: string
   temEquipe: boolean
   equipe: string
-  temCliente: boolean
-  clienteNome: string
-  clienteContato: string
+  temPessoa: boolean
+  pessoas: PessoaRef[]
   checklist: ChecklistItem[]
   observacoes: string
 }
@@ -40,12 +39,10 @@ const INITIAL_FORM: FormState = {
   horaFim: '',
   local: '',
   endereco: '',
-  responsavel: '',
   temEquipe: false,
   equipe: '',
-  temCliente: false,
-  clienteNome: '',
-  clienteContato: '',
+  temPessoa: false,
+  pessoas: [],
   checklist: [],
   observacoes: '',
 }
@@ -450,6 +447,398 @@ function ChecklistEditor({
   )
 }
 
+// ─── autocomplete de local ────────────────────────────────────────────────────
+
+type LocalSalvo = { id: string; nome: string; endereco: string }
+
+function LocalAutocomplete({
+  local,
+  endereco,
+  onChange,
+  userId,
+}: {
+  local: string
+  endereco: string
+  onChange: (local: string, endereco: string) => void
+  userId: string
+}) {
+  const [locais, setLocais] = useState<LocalSalvo[]>([])
+  const [query, setQuery] = useState(local)
+  const [open, setOpen] = useState(false)
+  const [salvando, setSalvando] = useState(false)
+  const [enderecoInput, setEnderecoInput] = useState(endereco)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const dropRef = useRef<HTMLDivElement>(null)
+
+  // carregar locais salvos
+  useEffect(() => {
+    if (!userId) return
+    supabase
+      .from('agenda_locais')
+      .select('*')
+      .eq('user_id', userId)
+      .order('nome', { ascending: true })
+      .then(({ data }) => { if (data) setLocais(data) })
+  }, [userId])
+
+  // sincronizar com form externo ao abrir edição
+  useEffect(() => { setQuery(local) }, [local])
+  useEffect(() => { setEnderecoInput(endereco) }, [endereco])
+
+  // fechar dropdown clicando fora
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [])
+
+  const filtered = query.trim()
+    ? locais.filter((l) => l.nome.toLowerCase().includes(query.toLowerCase()))
+    : locais
+
+  const queryExisteNaLista = locais.some(
+    (l) => l.nome.toLowerCase() === query.trim().toLowerCase()
+  )
+
+  function selecionar(l: LocalSalvo) {
+    setQuery(l.nome)
+    setEnderecoInput(l.endereco)
+    onChange(l.nome, l.endereco)
+    setOpen(false)
+  }
+
+  async function salvarNovo() {
+    const nome = query.trim()
+    const end = enderecoInput.trim()
+    if (!nome || !end) return
+    setSalvando(true)
+    try {
+      const { data } = await supabase
+        .from('agenda_locais')
+        .insert({ user_id: userId, nome, endereco: end })
+        .select()
+        .single()
+      if (data) setLocais((prev) => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)))
+      onChange(nome, end)
+      setOpen(false)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  const mostrarSalvar = query.trim() && !queryExisteNaLista && enderecoInput.trim()
+
+  return (
+    <div className="grid grid-cols-2 gap-3" ref={dropRef}>
+      {/* campo local com autocomplete */}
+      <div className="relative">
+        <span className="text-[11px] text-gray-500 mb-1 block">Local</span>
+        <div className="relative">
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              onChange(e.target.value, enderecoInput)
+              setOpen(true)
+            }}
+            onFocus={() => setOpen(true)}
+            placeholder="Buscar ou criar local..."
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 pr-8 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-white/30 transition"
+          />
+          {/* ícone lupa */}
+          <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.4"/>
+            <path d="M10.5 10.5l3.5 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+          </svg>
+        </div>
+
+        {/* dropdown */}
+        {open && (
+          <div className="absolute left-0 right-0 top-full mt-1 bg-[#1a1a1a] border border-white/10 rounded-xl overflow-hidden z-50 shadow-2xl">
+            {filtered.length > 0 && (
+              <ul className="max-h-48 overflow-y-auto">
+                {filtered.map((l) => (
+                  <li key={l.id}>
+                    <button
+                      type="button"
+                      onClick={() => selecionar(l)}
+                      className="w-full text-left px-3 py-2.5 hover:bg-white/5 transition group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <svg className="text-gray-500 flex-shrink-0" width="12" height="12" viewBox="0 0 16 16" fill="none">
+                          <path d="M8 1.5C5.5 1.5 3.5 3.5 3.5 6c0 3.5 4.5 8.5 4.5 8.5S12.5 9.5 12.5 6c0-2.5-2-4.5-4.5-4.5z" stroke="currentColor" strokeWidth="1.3"/>
+                          <circle cx="8" cy="6" r="1.5" stroke="currentColor" strokeWidth="1.1"/>
+                        </svg>
+                        <div>
+                          <p className="text-sm text-white leading-tight">
+                            {/* highlight do texto digitado */}
+                            {l.nome.split(new RegExp(`(${query})`, 'gi')).map((part, i) =>
+                              part.toLowerCase() === query.toLowerCase()
+                                ? <mark key={i} className="bg-blue-500/30 text-blue-300 rounded">{part}</mark>
+                                : part
+                            )}
+                          </p>
+                          {l.endereco && (
+                            <p className="text-[11px] text-gray-500 leading-tight mt-0.5">{l.endereco}</p>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {filtered.length === 0 && query.trim() && (
+              <div className="px-3 py-2.5 text-sm text-gray-500">
+                Nenhum local encontrado
+              </div>
+            )}
+
+            {mostrarSalvar && (
+              <>
+                {filtered.length > 0 && <div className="border-t border-white/5" />}
+                <div className="px-3 py-2.5">
+                  <p className="text-[11px] text-gray-500 mb-1.5">Salvar "{query.trim()}" como novo local</p>
+                  <button
+                    type="button"
+                    onClick={salvarNovo}
+                    disabled={salvando}
+                    className="w-full text-left text-sm text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 disabled:opacity-40 transition"
+                  >
+                    <span className="text-base leading-none">+</span>
+                    {salvando ? 'Salvando...' : 'Criar e salvar este local'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* campo endereço */}
+      <div>
+        <span className="text-[11px] text-gray-500 mb-1 block">Endereço</span>
+        <input
+          type="text"
+          value={enderecoInput}
+          onChange={(e) => {
+            setEnderecoInput(e.target.value)
+            onChange(query, e.target.value)
+          }}
+          placeholder="Rua, número"
+          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-white/30 transition"
+        />
+      </div>
+    </div>
+  )
+}
+
+// ─── picker de pessoas ────────────────────────────────────────────────────────
+
+type PessoaSalva = { id: string; nome: string; contato: string }
+
+function PessoasPicker({
+  selecionados,
+  onChange,
+  userId,
+}: {
+  selecionados: PessoaRef[]
+  onChange: (pessoas: PessoaRef[]) => void
+  userId: string
+}) {
+  const [todos, setTodos] = useState<PessoaSalva[]>([])
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const [novoContato, setNovoContato] = useState('')
+  const dropRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!userId) return
+    supabase
+      .from('agenda_pessoas')
+      .select('*')
+      .eq('user_id', userId)
+      .order('nome', { ascending: true })
+      .then(({ data }) => { if (data) setTodos(data) })
+  }, [userId])
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
+        setOpen(false)
+        setQuery('')
+        setNovoContato('')
+      }
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [])
+
+  const idsSelecionados = new Set(selecionados.map((p) => p.id))
+
+  const filtered = query.trim()
+    ? todos.filter((p) =>
+        p.nome.toLowerCase().includes(query.toLowerCase()) ||
+        p.contato.includes(query)
+      )
+    : todos.filter((p) => !idsSelecionados.has(p.id))
+
+  const queryExisteNaLista = todos.some(
+    (p) => p.nome.toLowerCase() === query.trim().toLowerCase()
+  )
+
+  function adicionar(p: PessoaSalva) {
+    if (idsSelecionados.has(p.id)) return
+    onChange([...selecionados, { id: p.id, nome: p.nome, contato: p.contato }])
+    setQuery('')
+    setOpen(false)
+    inputRef.current?.focus()
+  }
+
+  function remover(id: string) {
+    onChange(selecionados.filter((p) => p.id !== id))
+  }
+
+  async function salvarNovo() {
+    const nome = query.trim()
+    const contato = novoContato.trim()
+    if (!nome || !contato) return
+    const { data } = await supabase
+      .from('agenda_pessoas')
+      .insert({ user_id: userId, nome, contato })
+      .select().single()
+    if (data) {
+      setTodos((prev) => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)))
+      adicionar(data)
+    }
+    setNovoContato('')
+  }
+
+  const mostrarSalvar = query.trim() && !queryExisteNaLista
+
+  return (
+    <div ref={dropRef} className="space-y-2">
+      {/* chips dos selecionados */}
+      {selecionados.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {selecionados.map((p) => (
+            <div
+              key={p.id}
+              className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full pl-1.5 pr-2 py-1"
+            >
+              <Avatar name={p.nome} size="sm" />
+              <div className="leading-none">
+                <p className="text-xs text-white">{p.nome}</p>
+                <p className="text-[10px] text-gray-500">{p.contato}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => remover(p.id)}
+                className="ml-1 text-gray-600 hover:text-red-400 transition text-xs leading-none"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* campo de busca */}
+      <div className="relative">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" width="12" height="12" viewBox="0 0 16 16" fill="none">
+          <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.4"/>
+          <path d="M10.5 10.5l3.5 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+        </svg>
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
+          onFocus={() => setOpen(true)}
+          placeholder={selecionados.length > 0 ? '+ Adicionar outra pessoa...' : 'Buscar ou adicionar pessoa...'}
+          className="w-full bg-white/5 border border-white/10 rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-white/30 transition"
+        />
+
+        {open && (
+          <div className="absolute left-0 right-0 top-full mt-1 bg-[#1a1a1a] border border-white/10 rounded-xl overflow-hidden z-50 shadow-2xl">
+            {filtered.length > 0 && (
+              <ul className="max-h-44 overflow-y-auto">
+                {filtered.map((p) => {
+                  const jaSelecionado = idsSelecionados.has(p.id)
+                  return (
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        onClick={() => !jaSelecionado && adicionar(p)}
+                        className={`w-full text-left px-3 py-2.5 transition flex items-center gap-2.5 ${jaSelecionado ? 'opacity-40 cursor-default' : 'hover:bg-white/5'}`}
+                      >
+                        <Avatar name={p.nome} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white leading-tight truncate">
+                            {query.trim()
+                              ? p.nome.split(new RegExp(`(${query})`, 'gi')).map((part, i) =>
+                                  part.toLowerCase() === query.toLowerCase()
+                                    ? <mark key={i} className="bg-blue-500/30 text-blue-300 rounded px-0.5">{part}</mark>
+                                    : part
+                                )
+                              : p.nome}
+                          </p>
+                          <p className="text-[11px] text-gray-500 leading-tight mt-0.5">{p.contato}</p>
+                        </div>
+                        {jaSelecionado && <span className="text-[10px] text-emerald-500">adicionado</span>}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+
+            {filtered.length === 0 && !mostrarSalvar && (
+              <div className="px-3 py-2.5 text-sm text-gray-500">Nenhuma pessoa encontrada</div>
+            )}
+
+            {mostrarSalvar && (
+              <>
+                {filtered.length > 0 && <div className="border-t border-white/5" />}
+                <div className="px-3 py-3 space-y-2">
+                  <p className="text-[11px] text-gray-500">Criar "{query.trim()}" como nova pessoa</p>
+                  <input
+                    type="text"
+                    value={novoContato}
+                    onChange={(e) => setNovoContato(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && salvarNovo()}
+                    placeholder="Telefone para salvar..."
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-white/30 transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={salvarNovo}
+                    disabled={!novoContato.trim()}
+                    className="w-full text-left text-sm text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 disabled:opacity-40 transition"
+                  >
+                    <span className="text-base leading-none">+</span>
+                    Criar e adicionar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── modal principal ──────────────────────────────────────────────────────────
 
 export function AgendaModal({
@@ -482,12 +871,16 @@ export function AgendaModal({
       horaFim: initialData.hora_fim || '',
       local: initialData.local || '',
       endereco: initialData.endereco || '',
-      responsavel: initialData.responsavel || '',
       temEquipe: !!initialData.equipe,
       equipe: initialData.equipe || '',
-      temCliente: !!initialData.cliente_nome,
-      clienteNome: initialData.cliente_nome || '',
-      clienteContato: initialData.cliente_contato || '',
+      temPessoa: !!(initialData.pessoas?.length || initialData.clientes?.length || initialData.cliente_nome),
+      pessoas: initialData.pessoas
+        ? (typeof initialData.pessoas === 'string' ? JSON.parse(initialData.pessoas) : initialData.pessoas)
+        : initialData.clientes
+          ? (typeof initialData.clientes === 'string' ? JSON.parse(initialData.clientes) : initialData.clientes)
+          : initialData.cliente_nome
+            ? [{ id: crypto.randomUUID(), nome: initialData.cliente_nome, contato: initialData.cliente_contato || '' }]
+            : [],
       checklist: initialData.checklist
         ? typeof initialData.checklist === 'string'
           ? JSON.parse(initialData.checklist)
@@ -519,10 +912,8 @@ export function AgendaModal({
         hora_fim: form.horaFim,
         local: form.local,
         endereco: form.endereco,
-        responsavel: form.responsavel,
         equipe: form.temEquipe ? form.equipe : null,
-        cliente_nome: form.temCliente ? form.clienteNome : null,
-        cliente_contato: form.temCliente ? form.clienteContato : null,
+        pessoas: form.temPessoa ? form.pessoas : [],
         checklist: form.checklist,
         observacoes: form.observacoes,
       }
@@ -684,28 +1075,15 @@ export function AgendaModal({
           {/* local */}
           <div className="px-6 py-4">
             <SectionLabel>Localização</SectionLabel>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Local">
-                <Input value={form.local} onChange={(v) => set('local', v)} placeholder="Ex: Escritório central" />
-              </Field>
-              <Field label="Endereço">
-                <Input value={form.endereco} onChange={(v) => set('endereco', v)} placeholder="Rua, número" />
-              </Field>
-            </div>
-          </div>
-
-          {/* responsável */}
-          <div className="px-6 py-4">
-            <SectionLabel>Responsável</SectionLabel>
-            <div className="flex items-center gap-3">
-              {form.responsavel && <Avatar name={form.responsavel} />}
-              <Input
-                value={form.responsavel}
-                onChange={(v) => set('responsavel', v)}
-                placeholder="Nome do responsável"
-                className="flex-1"
-              />
-            </div>
+            <LocalAutocomplete
+              local={form.local}
+              endereco={form.endereco}
+              onChange={(local, endereco) => {
+                set('local', local)
+                set('endereco', endereco)
+              }}
+              userId={userId}
+            />
           </div>
 
           {/* equipe */}
@@ -736,26 +1114,15 @@ export function AgendaModal({
             )}
           </div>
 
-          {/* cliente */}
+          {/* pessoas */}
           <div className="px-6 py-4">
-            <Toggle value={form.temCliente} onChange={(v) => set('temCliente', v)} label="Cliente" />
-            {form.temCliente && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-2">
-                  {form.clienteNome && <Avatar name={form.clienteNome} />}
-                  <Input
-                    value={form.clienteNome}
-                    onChange={(v) => set('clienteNome', v)}
-                    placeholder="Nome do cliente"
-                    className="flex-1"
-                  />
-                </div>
-                <Input
-                  value={form.clienteContato}
-                  onChange={(v) => set('clienteContato', v)}
-                  placeholder="(00) 00000-0000"
-                />
-              </div>
+            <Toggle value={form.temPessoa} onChange={(v) => set('temPessoa', v)} label="Pessoas" />
+            {form.temPessoa && (
+              <PessoasPicker
+                selecionados={form.pessoas}
+                onChange={(pessoas) => set('pessoas', pessoas)}
+                userId={userId}
+              />
             )}
           </div>
 
