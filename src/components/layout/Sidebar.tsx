@@ -9,12 +9,7 @@ const menu = [
   { name: 'Agenda', href: '/agenda' },
   { name: 'Financeiro', href: '/financeiro' },
   { name: 'Gestão de Pessoas', href: '/gestao-de-pessoas' },
-  { name: 'Obras', href: '/obras' },
-  { name: 'Contratos', href: '/contratos' },
-  { name: 'Documentos', href: '/documentos' },
-  { name: 'Relatórios', href: '/relatorios' },
-  { name: 'Comparação', href: '/comparacao' },
-  { name: 'Auditoria', href: '/auditoria' },
+
 ]
 
 export default function Sidebar() {
