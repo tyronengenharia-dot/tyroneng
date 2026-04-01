@@ -45,3 +45,50 @@ body {
     transform: translateY(0) scale(1);
   }
 }
+
+.page-dark {
+  background: #0b0b0b;
+  color: #fff;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.card {
+  background: #121212;
+  border: 1px solid #1f1f1f;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.input {
+  width: 100%;
+  background: #0f0f0f;
+  border: 1px solid #2a2a2a;
+  color: white;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.button {
+  background: #2563eb;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  color: white;
+}
+
+.button.secondary {
+  background: #1f1f1f;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 12px;
+  border-bottom: 1px solid #1f1f1f;
+}

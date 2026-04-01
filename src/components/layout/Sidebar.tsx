@@ -2,14 +2,24 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ThemeToggle } from '@/components/ui/ThemeToggle'
+
 
 const menu = [
   { name: 'Início', href: '/' },
   { name: 'Agenda', href: '/agenda' },
   { name: 'Financeiro', href: '/financeiro' },
   { name: 'Gestão de Pessoas', href: '/gestao-de-pessoas' },
-
+  { name: 'Obras', href: '/obras' },
+  { name: 'Contratos', href: '/contratos' },
+  { name: 'Documentos', href: '/documentos' },
+  { name: 'Relatórios', href: '/relatorios' },
+  { name: 'Comparação', href: '/comparacao' },
+  { name: 'Auditoria', href: '/auditoria' },
+  { name: 'Licitações', href: '/licitacao' },
+  { name: 'Acervo Técnico', href: '/acervotecnico' },
+  { name: 'Propostas', href: '/propostas' },
+  { name: 'Estoque da Empresa', href: '/estoque' },
+  { name: 'Compras', href: '/compras' },
 ]
 
 export default function Sidebar() {
@@ -37,7 +47,7 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      <ThemeToggle />
+
     </aside>
   )
 }
