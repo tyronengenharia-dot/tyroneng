@@ -8,7 +8,7 @@ const menu = [
   { name: 'Início', href: '/' },
   { name: 'Agenda', href: '/agenda' },
   { name: 'Financeiro', href: '/financeiro' },
-  { name: 'Funcionários', href: '/funcionarios' },
+  { name: 'Gestão de Pessoas', href: '/gestao-de-pessoas' },
   { name: 'Obras', href: '/obras' },
   { name: 'Contratos', href: '/contratos' },
   { name: 'Documentos', href: '/documentos' },
