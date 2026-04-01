@@ -179,7 +179,7 @@ useEffect(() => {
           <FolhaTable
               data={folha}
               onUpdate={fetchFolha}
-              onOpenAdjust={(item) => {
+              onOpenAdjust={(item: any) => {
                 setSelectedItem(item)
                 setOpenAdjustModal(true)
               }}
