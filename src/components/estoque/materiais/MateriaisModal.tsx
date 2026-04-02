@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { createMaterial, updateMaterial } from '@/services/estoqueService'
 import { Material } from '@/types/estoque'
-import { ModalOverlay, Field, inputCls, selectCls } from '@/components/estoque/estoqueUI'
+import { ModalOverlay, Field, inputCls, selectCls } from '@/components/ui/EstoqueUI'
 
 const UNIDADES = ['un', 'kg', 'g', 'l', 'ml', 'm', 'm²', 'm³', 'cx', 'pç', 'sc', 'bd', 'rolo', 'par']
 

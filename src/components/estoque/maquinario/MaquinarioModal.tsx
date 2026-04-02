@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { createMaquinario, updateMaquinario } from '@/services/estoqueService'
 import { Maquinario } from '@/types/estoque'
-import { ModalOverlay, Field, inputCls, selectCls } from '@/components/estoque/estoqueUI'
+import { ModalOverlay, Field, inputCls, selectCls } from '@/components/ui/EstoqueUI'
 
 type Props = {
   initial?: Maquinario | null

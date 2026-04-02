@@ -11,7 +11,7 @@ import {
   TableHead,
   RowActions,
   StatusBadge,
-} from '@/components/estoque/estoqueUI'
+} from '@/components/ui/EstoqueUI'
 
 export function VeiculosTable() {
   const [data, setData] = useState<Veiculo[]>([])

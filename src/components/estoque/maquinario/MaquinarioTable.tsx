@@ -11,7 +11,7 @@ import {
   TableHead,
   RowActions,
   StatusBadge,
-} from '@/components/estoque/estoqueUI'
+} from '@/components/ui/EstoqueUI'
 
 export function MaquinarioTable() {
   const [data, setData] = useState<Maquinario[]>([])
