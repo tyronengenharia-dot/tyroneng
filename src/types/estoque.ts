@@ -4,8 +4,8 @@ export type Material = {
   unidade: string
   quantidade: number
   valor_unitario: number
+  created_at?: string
 }
-
 
 export type Equipamento = {
   id: string
@@ -16,6 +16,7 @@ export type Equipamento = {
   localizacao?: string
   responsavel?: string
   valor?: number
+  created_at?: string
 }
 
 export type Maquinario = {
@@ -25,16 +26,13 @@ export type Maquinario = {
   modelo: string
   fabricante?: string
   ano?: number
-
   horimetro: number
   custo_hora?: number
-
   status: 'ativo' | 'em_uso' | 'manutencao' | 'parado'
-
   localizacao?: string
   obra_id?: string
-
   observacoes?: string
+  created_at?: string
 }
 
 export type Veiculo = {
@@ -46,4 +44,12 @@ export type Veiculo = {
   km: number
   status: 'ativo' | 'manutencao' | 'inativo'
   observacoes?: string
+  created_at?: string
+}
+
+export type EstoqueStats = {
+  totalAtivos: number
+  valorTotal: number
+  emManutencao: number
+  totalVeiculos: number
 }

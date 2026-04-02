@@ -1,94 +1,88 @@
 'use client'
 
 import { useState } from 'react'
-import { createEquipamento } from '@/services/estoqueService'
+import { createEquipamento, updateEquipamento } from '@/services/estoqueService'
+import { Equipamento } from '@/types/estoque'
+import { ModalOverlay, Field, inputCls, selectCls } from '@/components/estoque/estoqueUI'
 
-export function EquipamentosModal({ onClose, onSuccess }: any) {
+type Props = {
+  initial?: Equipamento | null
+  onClose: () => void
+  onSuccess: () => void
+}
+
+export function EquipamentosModal({ initial, onClose, onSuccess }: Props) {
   const [form, setForm] = useState({
-    nome: '',
-    numero_serie: '',
-    categoria: '',
-    status: 'disponivel',
-    localizacao: '',
-    responsavel: '',
-    valor: 0
+    nome: initial?.nome ?? '',
+    numero_serie: initial?.numero_serie ?? '',
+    categoria: initial?.categoria ?? '',
+    status: initial?.status ?? 'disponivel',
+    localizacao: initial?.localizacao ?? '',
+    responsavel: initial?.responsavel ?? '',
+    valor: initial?.valor ?? 0,
   })
 
+  const isEditing = !!initial
+
   async function handleSave() {
-    await createEquipamento(form)
+    if (!form.nome.trim()) return
+    if (isEditing) {
+      await updateEquipamento(initial!.id, form)
+    } else {
+      await createEquipamento(form)
+    }
     onSuccess()
     onClose()
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
-      <div className="bg-[#1a1a1a] p-6 rounded-xl w-[500px]">
-        <h2 className="mb-4 text-lg font-semibold">
-          Novo Equipamento
-        </h2>
+    <ModalOverlay
+      title={isEditing ? 'Editar Equipamento' : 'Novo Equipamento'}
+      onClose={onClose}
+      onSave={handleSave}
+    >
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <Field label="Nome *">
+            <input className={inputCls} placeholder="Ex: Compactador de Solo" value={form.nome}
+              onChange={e => setForm({ ...form, nome: e.target.value })} />
+          </Field>
+        </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            placeholder="Nome"
-            className="p-2 bg-black rounded"
-            onChange={e => setForm({ ...form, nome: e.target.value })}
-          />
+        <Field label="Número de Série">
+          <input className={inputCls} placeholder="SN-00001" value={form.numero_serie}
+            onChange={e => setForm({ ...form, numero_serie: e.target.value })} />
+        </Field>
 
-          <input
-            placeholder="Número de Série"
-            className="p-2 bg-black rounded"
-            onChange={e =>
-              setForm({ ...form, numero_serie: e.target.value })
-            }
-          />
+        <Field label="Categoria">
+          <input className={inputCls} placeholder="Ex: Elétrico" value={form.categoria}
+            onChange={e => setForm({ ...form, categoria: e.target.value })} />
+        </Field>
 
-          <input
-            placeholder="Categoria"
-            className="p-2 bg-black rounded"
-            onChange={e => setForm({ ...form, categoria: e.target.value })}
-          />
+        <Field label="Localização">
+          <input className={inputCls} placeholder="Ex: Almoxarifado A" value={form.localizacao}
+            onChange={e => setForm({ ...form, localizacao: e.target.value })} />
+        </Field>
 
-          <input
-            placeholder="Localização"
-            className="p-2 bg-black rounded"
-            onChange={e => setForm({ ...form, localizacao: e.target.value })}
-          />
+        <Field label="Responsável">
+          <input className={inputCls} placeholder="Nome do responsável" value={form.responsavel}
+            onChange={e => setForm({ ...form, responsavel: e.target.value })} />
+        </Field>
 
-          <input
-            placeholder="Responsável"
-            className="p-2 bg-black rounded"
-            onChange={e => setForm({ ...form, responsavel: e.target.value })}
-          />
-
-          <select
-            className="p-2 bg-black rounded"
-            onChange={e => setForm({ ...form, status: e.target.value })}
-          >
+        <Field label="Status">
+          <select className={selectCls} value={form.status}
+            onChange={e => setForm({ ...form, status: e.target.value as any })}>
             <option value="disponivel">Disponível</option>
             <option value="em_uso">Em uso</option>
             <option value="manutencao">Manutenção</option>
           </select>
-        </div>
+        </Field>
 
-        <input
-          type="number"
-          placeholder="Valor (R$)"
-          className="w-full mt-3 p-2 bg-black rounded"
-          onChange={e =>
-            setForm({ ...form, valor: Number(e.target.value) })
-          }
-        />
-
-        <div className="flex justify-end gap-2 mt-4">
-          <button onClick={onClose}>Cancelar</button>
-          <button
-            onClick={handleSave}
-            className="bg-blue-600 px-4 py-2 rounded"
-          >
-            Salvar
-          </button>
-        </div>
+        <Field label="Valor (R$)">
+          <input type="number" min={0} step={0.01} className={inputCls} value={form.valor}
+            onChange={e => setForm({ ...form, valor: Number(e.target.value) })} />
+        </Field>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

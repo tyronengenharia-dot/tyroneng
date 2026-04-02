@@ -1,89 +1,92 @@
 'use client'
 
 import { useState } from 'react'
-import { createVeiculo } from '@/services/estoqueService'
+import { createVeiculo, updateVeiculo } from '@/services/estoqueService'
+import { Veiculo } from '@/types/estoque'
+import { ModalOverlay, Field, inputCls, selectCls } from '@/components/estoque/estoqueUI'
 
-export function VeiculosModal({ onClose, onSuccess }: any) {
+type Props = {
+  initial?: Veiculo | null
+  onClose: () => void
+  onSuccess: () => void
+}
+
+export function VeiculosModal({ initial, onClose, onSuccess }: Props) {
   const [form, setForm] = useState({
-    nome: '',
-    placa: '',
-    modelo: '',
-    ano: 2024,
-    km: 0,
-    status: 'ativo',
-    observacoes: ''
+    nome: initial?.nome ?? '',
+    placa: initial?.placa ?? '',
+    modelo: initial?.modelo ?? '',
+    ano: initial?.ano ?? new Date().getFullYear(),
+    km: initial?.km ?? 0,
+    status: initial?.status ?? 'ativo',
+    observacoes: initial?.observacoes ?? '',
   })
 
+  const isEditing = !!initial
+
   async function handleSave() {
-    await createVeiculo(form)
+    if (!form.nome.trim() || !form.placa.trim()) return
+    if (isEditing) {
+      await updateVeiculo(initial!.id, form)
+    } else {
+      await createVeiculo(form)
+    }
     onSuccess()
     onClose()
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
-      <div className="bg-[#1a1a1a] p-6 rounded-xl w-[500px]">
-        <h2 className="mb-4 text-lg font-semibold">Novo Veículo</h2>
-
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            placeholder="Nome"
-            className="p-2 bg-black rounded"
-            onChange={e => setForm({ ...form, nome: e.target.value })}
-          />
-
-          <input
-            placeholder="Placa"
-            className="p-2 bg-black rounded"
-            onChange={e => setForm({ ...form, placa: e.target.value })}
-          />
-
-          <input
-            placeholder="Modelo"
-            className="p-2 bg-black rounded"
-            onChange={e => setForm({ ...form, modelo: e.target.value })}
-          />
-
-          <input
-            type="number"
-            placeholder="Ano"
-            className="p-2 bg-black rounded"
-            onChange={e => setForm({ ...form, ano: Number(e.target.value) })}
-          />
-
-          <input
-            type="number"
-            placeholder="KM"
-            className="p-2 bg-black rounded"
-            onChange={e => setForm({ ...form, km: Number(e.target.value) })}
-          />
-
-          <select
-            className="p-2 bg-black rounded"
-            onChange={e => setForm({ ...form, status: e.target.value })}
-          >
-            <option value="ativo">Ativo</option>
-            <option value="manutencao">Manutenção</option>
-            <option value="inativo">Inativo</option>
-          </select>
+    <ModalOverlay
+      title={isEditing ? 'Editar Veículo' : 'Novo Veículo'}
+      onClose={onClose}
+      onSave={handleSave}
+    >
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <Field label="Nome *">
+            <input className={inputCls} placeholder="Ex: Caminhão Betoneira" value={form.nome}
+              onChange={e => setForm({ ...form, nome: e.target.value })} />
+          </Field>
         </div>
 
-        <textarea
-          placeholder="Observações"
-          className="w-full mt-3 p-2 bg-black rounded"
-          onChange={e => setForm({ ...form, observacoes: e.target.value })}
-        />
+        <Field label="Placa *">
+          <input className={inputCls} placeholder="ABC-1234" value={form.placa}
+            onChange={e => setForm({ ...form, placa: e.target.value.toUpperCase() })} />
+        </Field>
 
-        <div className="flex justify-end gap-2 mt-4">
-          <button onClick={onClose}>Cancelar</button>
-          <button
-            onClick={handleSave}
-            className="bg-blue-600 px-4 py-2 rounded"
-          >
-            Salvar
-          </button>
+        <Field label="Modelo">
+          <input className={inputCls} placeholder="Ex: Mercedes Actros" value={form.modelo}
+            onChange={e => setForm({ ...form, modelo: e.target.value })} />
+        </Field>
+
+        <Field label="Ano">
+          <input type="number" className={inputCls} value={form.ano}
+            onChange={e => setForm({ ...form, ano: Number(e.target.value) })} />
+        </Field>
+
+        <Field label="KM Atual">
+          <input type="number" min={0} className={inputCls} value={form.km}
+            onChange={e => setForm({ ...form, km: Number(e.target.value) })} />
+        </Field>
+
+        <div className="col-span-2">
+          <Field label="Status">
+            <select className={selectCls} value={form.status}
+              onChange={e => setForm({ ...form, status: e.target.value as any })}>
+              <option value="ativo">Ativo</option>
+              <option value="manutencao">Manutenção</option>
+              <option value="inativo">Inativo</option>
+            </select>
+          </Field>
+        </div>
+
+        <div className="col-span-2">
+          <Field label="Observações">
+            <textarea rows={3} className={inputCls} placeholder="Informações adicionais..." value={form.observacoes}
+              onChange={e => setForm({ ...form, observacoes: e.target.value })} />
+          </Field>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }
