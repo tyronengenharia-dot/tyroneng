@@ -21,6 +21,7 @@ import {
   autorizarPedido,
   recusarPedido,
   confirmarEntrega,
+  updateSolicitacaoStatus,
 } from '@/services/comprasService'
 
 import { ComprasDashboard } from '@/components/compras/ComprasDashboard'
@@ -29,9 +30,10 @@ import { ComparativoCotacao } from '@/components/compras/ComparativoCotacao'
 import { PedidoList } from '@/components/compras/PedidoList'
 import { EntregaList } from '@/components/compras/EntregaList'
 import { AuditoriaTimeline } from '@/components/compras/AuditoriaTimeline'
+import { ConcluídosList } from '@/components/compras/ConcluídosList'
 import { NovaSolicitacaoModal } from '@/components/compras/NovaSolicitacaoModal'
 
-type TabId = 'dashboard' | 'solicitacoes' | 'cotacoes' | 'pedidos' | 'entregas' | 'auditoria'
+type TabId = 'dashboard' | 'solicitacoes' | 'cotacoes' | 'pedidos' | 'entregas' | 'concluidos' | 'auditoria'
 
 interface Tab {
   id: TabId
@@ -167,11 +169,27 @@ export default function ComprasPage() {
     setCotacoes((prev) => [nova, ...prev])
   }
 
-  // Etapa 2: pessoa seleciona a melhor cotação → cria pedido aguardando aprovação
+  // *** CORREÇÃO PRINCIPAL ***
+  // Botão "Cotar" atualiza o status da solicitação para em_cotacao no banco,
+  // atualiza o estado local, e navega para a aba de cotações.
+  const handleCotar = async (solicitacao: SolicitacaoCompra) => {
+    try {
+      await updateSolicitacaoStatus(solicitacao.id, 'em_cotacao', 'sistema')
+      setSolicitacoes((prev) =>
+        prev.map((s) => s.id === solicitacao.id ? { ...s, status: 'em_cotacao' as const } : s)
+      )
+      setMetricas((prev) => ({
+        ...prev,
+        solicitacoes_pendentes: Math.max(0, prev.solicitacoes_pendentes - 1),
+      }))
+    } catch (err) {
+      console.error('[Compras] Erro ao mover para cotação:', err)
+    }
+    setActiveTab('cotacoes')
+  }
+
   const handleSelecionarCotacao = async (cotacaoId: string, solicitacaoId: string) => {
     const { pedido } = await selecionarCotacao(cotacaoId, solicitacaoId, 'cotador')
-
-    // Atualiza cotações: marca a selecionada, desmarca as demais da mesma solicitação
     setCotacoes((prev) =>
       prev.map((c) =>
         c.solicitacao_id === solicitacaoId
@@ -179,22 +197,15 @@ export default function ComprasPage() {
           : c
       )
     )
-    // Adiciona o pedido ao estado (aguardando aprovação)
     setPedidos((prev) => [pedido, ...prev.filter((p) => p.cotacao_id !== cotacaoId)])
-
-    // Navega para pedidos para a 3ª pessoa ver e autorizar
     setActiveTab('pedidos')
   }
 
-  // Troca de cotação: cancela o pedido anterior, seleciona o novo
   const handleDesselecionarCotacao = async (cotacaoId: string, solicitacaoId: string) => {
     await desselecionarCotacao(cotacaoId, solicitacaoId)
-
-    // Desmarca no estado local
     setCotacoes((prev) =>
       prev.map((c) => c.id === cotacaoId ? { ...c, selecionada: false } : c)
     )
-    // Marca o pedido vinculado como cancelado no estado local
     setPedidos((prev) =>
       prev.map((p) =>
         p.cotacao_id === cotacaoId && ['aguardando_aprovacao', 'rascunho'].includes(p.status)
@@ -204,29 +215,33 @@ export default function ComprasPage() {
     )
   }
 
-  // Etapa 3: pessoa autoriza a compra
   const handleAutorizarPedido = async (pedido: PedidoCompra) => {
     const atualizado = await autorizarPedido(pedido.id, 'autorizador')
     setPedidos((prev) => prev.map((p) => p.id === pedido.id ? atualizado : p))
     setSolicitacoes((prev) =>
       prev.map((s) => s.id === pedido.solicitacao_id ? { ...s, status: 'aprovada' as const } : s)
     )
+    try {
+      const novasEntregas = await getEntregas()
+      setEntregas(novasEntregas)
+    } catch (err) {
+      console.warn('[Compras] Erro ao recarregar entregas:', err)
+    }
+    setActiveTab('entregas')
   }
 
-  // Recusa: pedido cancelado, cotação volta para seleção
   const handleRecusarPedido = async (pedido: PedidoCompra) => {
     const atualizado = await recusarPedido(pedido.id, 'autorizador')
     setPedidos((prev) => prev.map((p) => p.id === pedido.id ? atualizado : p))
-    // Desmarca a cotação vinculada no estado local
     if (pedido.cotacao_id) {
       setCotacoes((prev) =>
         prev.map((c) => c.id === pedido.cotacao_id ? { ...c, selecionada: false } : c)
       )
     }
-    // Volta solicitação para em_cotacao
     setSolicitacoes((prev) =>
       prev.map((s) => s.id === pedido.solicitacao_id ? { ...s, status: 'em_cotacao' as const } : s)
     )
+    setActiveTab('cotacoes')
   }
 
   const handleConfirmarEntrega = async (id: string) => {
@@ -242,13 +257,24 @@ export default function ComprasPage() {
   // ── Dados derivados ───────────────────────────────────────────────────────
 
   const pendentes = solicitacoes.filter((s) => s.status === 'pendente').length
-  const emCotacao = solicitacoes.filter((s) => s.status === 'em_cotacao').length
-  const atrasadas = entregas.filter((e) => e.status === 'atrasado').length
-  const aguardandoAprovacao = pedidos.filter((p) =>
-    p.status === 'aguardando_aprovacao' || p.status === 'rascunho'
-  ).length
 
-  const cotacoesPorSolicitacao = cotacoes.reduce<Record<string, CotacaoFornecedor[]>>(
+  const pedidosCotacaoIds = new Set(
+    pedidos
+      .filter((p) => ['aguardando_aprovacao', 'rascunho', 'aprovado'].includes(p.status))
+      .map((p) => p.cotacao_id)
+      .filter(Boolean)
+  )
+  const cotacoesFiltradas = cotacoes.filter((c) => !pedidosCotacaoIds.has(c.id))
+
+  const solicitacoesParaCotacao = solicitacoes.filter((s) => {
+    if (s.status !== 'em_cotacao') return false
+    const temPedidoAtivo = pedidos.some(
+      (p) => p.solicitacao_id === s.id && ['aguardando_aprovacao', 'rascunho', 'aprovado'].includes(p.status)
+    )
+    return !temPedidoAtivo
+  })
+
+  const cotacoesPorSolicitacao = cotacoesFiltradas.reduce<Record<string, CotacaoFornecedor[]>>(
     (acc, c) => {
       if (!acc[c.solicitacao_id]) acc[c.solicitacao_id] = []
       acc[c.solicitacao_id].push(c)
@@ -257,17 +283,23 @@ export default function ComprasPage() {
     {}
   )
 
-  const solicitacoesParaCotacao =
-    solicitacoes.filter((s) => s.status === 'em_cotacao').length > 0
-      ? solicitacoes.filter((s) => s.status === 'em_cotacao')
-      : solicitacoes.slice(0, 5)
+  const pedidosAtivos = pedidos.filter((p) =>
+    p.status === 'aguardando_aprovacao' || p.status === 'rascunho'
+  )
+  const aguardandoAprovacao = pedidosAtivos.length
+
+  const entregasAtivas = entregas.filter((e) => e.status !== 'entregue')
+  const entregasConcluidas = entregas.filter((e) => e.status === 'entregue')
+  const entregasAtrasadas = entregasAtivas.filter((e) => e.status === 'atrasado').length
+  const emCotacaoCount = solicitacoesParaCotacao.length
 
   const tabs: Tab[] = [
     { id: 'dashboard',    label: 'Dashboard' },
     { id: 'solicitacoes', label: 'Solicitações', badge: pendentes },
-    { id: 'cotacoes',     label: 'Cotações',     badge: emCotacao },
+    { id: 'cotacoes',     label: 'Cotações',     badge: emCotacaoCount },
     { id: 'pedidos',      label: 'Pedidos',      badge: aguardandoAprovacao },
-    { id: 'entregas',     label: 'Entregas',     badge: atrasadas },
+    { id: 'entregas',     label: 'Entregas',     badge: entregasAtrasadas > 0 ? entregasAtrasadas : undefined },
+    { id: 'concluidos',   label: 'Concluídos' },
     { id: 'auditoria',    label: 'Auditoria' },
   ]
 
@@ -324,7 +356,7 @@ export default function ComprasPage() {
                 <ComprasDashboard
                   metricas={metricas}
                   solicitacoesRecentes={solicitacoes.slice(0, 5)}
-                  entregasAtivas={entregas.filter((e) => e.status !== 'entregue').slice(0, 4)}
+                  entregasAtivas={entregasAtivas.slice(0, 4)}
                   onTabChange={(tab) => setActiveTab(tab as TabId)}
                 />
               )}
@@ -332,13 +364,12 @@ export default function ComprasPage() {
               {activeTab === 'solicitacoes' && (
                 <SolicitacaoList
                   data={solicitacoes}
-                  onCotar={() => setActiveTab('cotacoes')}
+                  onCotar={handleCotar}
                   onVerDetalhes={() => {}}
                   onNovaSolicitacao={() => setModalAberto(true)}
                 />
               )}
 
-              {/* Etapa 2 — cotador escolhe a melhor cotação */}
               {activeTab === 'cotacoes' && (
                 <ComparativoCotacao
                   solicitacoes={solicitacoesParaCotacao}
@@ -350,10 +381,9 @@ export default function ComprasPage() {
                 />
               )}
 
-              {/* Etapa 3 — autorizador aprova ou recusa */}
               {activeTab === 'pedidos' && (
                 <PedidoList
-                  data={pedidos}
+                  data={pedidosAtivos}
                   onAutorizar={handleAutorizarPedido}
                   onRecusar={handleRecusarPedido}
                   onVerDetalhes={() => {}}
@@ -361,7 +391,17 @@ export default function ComprasPage() {
               )}
 
               {activeTab === 'entregas' && (
-                <EntregaList data={entregas} onConfirmar={handleConfirmarEntrega} />
+                <EntregaList
+                  data={entregasAtivas}
+                  onConfirmar={handleConfirmarEntrega}
+                />
+              )}
+
+              {activeTab === 'concluidos' && (
+                <ConcluídosList
+                  entregas={entregasConcluidas}
+                  pedidos={pedidos.filter((p) => p.status === 'aprovado')}
+                />
               )}
 
               {activeTab === 'auditoria' && (

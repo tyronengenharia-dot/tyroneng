@@ -71,7 +71,11 @@ export interface PedidoCompra {
   aprovado_por: string
   data_aprovacao?: string
   observacoes?: string
-  status: 'rascunho' | 'aprovado' | 'cancelado'
+  // aguardando_aprovacao = cotação selecionada, aguardando o autorizador fechar a compra
+  // aprovado = compra fechada, entrega gerada
+  // cancelado = devolvido para cotação
+  // rascunho = estado inicial antes de enviar
+  status: 'rascunho' | 'aguardando_aprovacao' | 'aprovado' | 'cancelado'
   created_at: string
 }
 

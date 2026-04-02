@@ -7,7 +7,7 @@ import { formatarData } from '@/lib/formatters'
 
 interface Props {
   data: SolicitacaoCompra[]
-  onCotar?: (id: string) => void
+  onCotar?: (solicitacao: SolicitacaoCompra) => void
   onVerDetalhes?: (item: SolicitacaoCompra) => void
   onNovaSolicitacao?: () => void
 }
@@ -23,6 +23,7 @@ const FILTROS_STATUS: { label: string; value: StatusSolicitacao | 'todas' }[] = 
 export function SolicitacaoList({ data, onCotar, onVerDetalhes, onNovaSolicitacao }: Props) {
   const [filtroStatus, setFiltroStatus] = useState<StatusSolicitacao | 'todas'>('todas')
   const [busca, setBusca] = useState('')
+  const [cotandoId, setCotandoId] = useState<string | null>(null)
 
   const filtrados = useMemo(() => {
     return data.filter((s) => {
@@ -44,16 +45,21 @@ export function SolicitacaoList({ data, onCotar, onVerDetalhes, onNovaSolicitaca
     recusada: data.filter((s) => s.status === 'recusada').length,
   }), [data])
 
+  async function handleCotar(s: SolicitacaoCompra) {
+    setCotandoId(s.id)
+    try {
+      await onCotar?.(s)
+    } finally {
+      setCotandoId(null)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {/* Busca */}
         <div className="relative max-w-xs flex-1">
-          <svg
-            className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500"
-            viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"
-          >
+          <svg className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="6.5" cy="6.5" r="5" />
             <path d="M10.5 10.5L14 14" strokeLinecap="round" />
           </svg>
@@ -106,12 +112,7 @@ export function SolicitacaoList({ data, onCotar, onVerDetalhes, onNovaSolicitaca
             <thead>
               <tr className="border-b border-zinc-800 bg-zinc-900/80">
                 {['#', 'Descrição', 'Categoria', 'Qtd', 'Urgência', 'Necessidade', 'Status', 'Solicitante', ''].map((h) => (
-                  <th
-                    key={h}
-                    className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-zinc-500"
-                  >
-                    {h}
-                  </th>
+                  <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-zinc-500">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -124,10 +125,7 @@ export function SolicitacaoList({ data, onCotar, onVerDetalhes, onNovaSolicitaca
                 </tr>
               ) : (
                 filtrados.map((s, i) => (
-                  <tr
-                    key={s.id}
-                    className="group transition-colors hover:bg-zinc-800/40"
-                  >
+                  <tr key={s.id} className="group transition-colors hover:bg-zinc-800/40">
                     <td className="whitespace-nowrap px-4 py-3 text-[11px] font-mono text-zinc-500">
                       #{String(i + 1).padStart(4, '0')}
                     </td>
@@ -150,11 +148,17 @@ export function SolicitacaoList({ data, onCotar, onVerDetalhes, onNovaSolicitaca
                     <td className="whitespace-nowrap px-4 py-3 text-[12px] text-zinc-400">{s.solicitante}</td>
                     <td className="whitespace-nowrap px-4 py-3">
                       <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                        {(s.status === 'pendente') && (
+                        {s.status === 'pendente' && (
                           <button
-                            onClick={() => onCotar?.(s.id)}
-                            className="rounded-md bg-indigo-600/80 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-indigo-500 transition-colors"
+                            onClick={() => handleCotar(s)}
+                            disabled={cotandoId === s.id}
+                            className="flex items-center gap-1 rounded-md bg-indigo-600/80 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-indigo-500 transition-colors disabled:opacity-50"
                           >
+                            {cotandoId === s.id ? (
+                              <svg className="h-2.5 w-2.5 animate-spin" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="8" cy="8" r="6" strokeOpacity="0.3"/><path d="M8 2a6 6 0 016 6" strokeLinecap="round"/>
+                              </svg>
+                            ) : null}
                             Cotar
                           </button>
                         )}
