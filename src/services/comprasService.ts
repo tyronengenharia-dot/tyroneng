@@ -310,14 +310,33 @@ export async function marcarEntregaAtrasada(id: string) {
 
 // ─── Fornecedores ───────────────────────────────────────────────────────────
 
-export async function getFornecedores() {
+export async function getFornecedores(): Promise<Fornecedor[]> {
   const { data, error } = await supabase
     .from('fornecedores')
     .select('*')
-    .order('avaliacao', { ascending: false })
+    .order('nome', { ascending: true })
 
   if (error) throw error
-  return data as Fornecedor[]
+
+  return (data ?? []).map((f: Record<string, unknown>) => ({
+    id: String(f.id ?? ''),
+    nome: String(f.nome || f.razao_social || ''),
+    razao_social: f.razao_social ? String(f.razao_social) : undefined,
+    cnpj: f.cnpj ? String(f.cnpj) : undefined,
+    categoria: f.categoria ? String(f.categoria) : undefined,
+    status: f.status ? String(f.status) : undefined,
+    contato: f.contato ? String(f.contato) : undefined,
+    telefone: f.telefone ? String(f.telefone) : undefined,
+    email: f.email ? String(f.email) : undefined,
+    avaliacao: f.avaliacao != null ? Number(f.avaliacao) : undefined,
+    cidade: f.cidade ? String(f.cidade) : undefined,
+    estado: f.estado ? String(f.estado) : undefined,
+    observacoes: f.observacoes ? String(f.observacoes) : undefined,
+    total_pedidos: f.total_pedidos != null ? Number(f.total_pedidos) : undefined,
+    percentual_pontualidade: f.percentual_pontualidade != null ? Number(f.percentual_pontualidade) : undefined,
+    ativo: f.status ? String(f.status).toLowerCase() === 'ativo' : f.ativo !== false,
+    created_at: f.created_at ? String(f.created_at) : undefined,
+  }))
 }
 
 export async function createFornecedor(

@@ -91,17 +91,22 @@ export interface Entrega {
 
 export interface Fornecedor {
   id: string
-  nome: string
-  cnpj: string
-  categoria: string
-  contato: string
-  email: string
-  telefone: string
-  avaliacao: number
-  total_pedidos: number
-  percentual_pontualidade: number
-  ativo: boolean
-  created_at: string
+  nome: string               // Nome fantasia
+  razao_social?: string      // Razão social completa
+  cnpj?: string
+  categoria?: string
+  status?: string            // campo texto: 'Ativo', 'Inativo'...
+  contato?: string           // Nome do responsável
+  telefone?: string
+  email?: string
+  avaliacao?: number         // 1-5, null = não avaliado
+  cidade?: string
+  estado?: string
+  observacoes?: string
+  total_pedidos?: number
+  percentual_pontualidade?: number
+  ativo?: boolean
+  created_at?: string
 }
 
 export interface AuditoriaLog {
