@@ -8,20 +8,118 @@ import { NovaCotacaoModal } from './NovaCotacaoModal'
 interface Props {
   solicitacoes: SolicitacaoCompra[]
   cotacoesPorSolicitacao: Record<string, CotacaoFornecedor[]>
-  onSelecionar?: (cotacaoId: string, solicitacaoId: string) => void
+  onSelecionar?: (cotacaoId: string, solicitacaoId: string) => Promise<void>
+  onDesselecionar?: (cotacaoId: string, solicitacaoId: string) => Promise<void>
   onAdicionarCotacao?: (solicitacaoId: string) => void
+  onCotacaoCriada?: (nova: CotacaoFornecedor) => void
 }
+
+// ─── Modal de confirmação de troca ────────────────────────────────────────────
+
+function ModalConfirmacaoTroca({
+  cotacaoAtual,
+  cotacaoNova,
+  carregando,
+  onConfirmar,
+  onCancelar,
+}: {
+  cotacaoAtual: CotacaoFornecedor
+  cotacaoNova: CotacaoFornecedor
+  carregando: boolean
+  onConfirmar: () => void
+  onCancelar: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl border border-zinc-700/60 bg-zinc-900 shadow-2xl">
+        <div className="border-b border-zinc-800 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/15">
+              <svg className="h-4 w-4 text-amber-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M8 2L1.5 13h13L8 2z" strokeLinejoin="round"/>
+                <path d="M8 7v3" strokeLinecap="round"/>
+                <circle cx="8" cy="11.5" r="0.5" fill="currentColor"/>
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-[14px] font-semibold text-zinc-100">Trocar cotação selecionada?</h2>
+              <p className="text-[11px] text-zinc-500">Já existe uma cotação aprovada para esta solicitação</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3 px-6 py-5">
+          {/* Cotação atual */}
+          <div className="rounded-lg border border-zinc-800 bg-zinc-800/40 p-3">
+            <p className="mb-2 text-[9px] font-semibold uppercase tracking-widest text-zinc-500">Cotação atual — será cancelada</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[12px] font-medium text-zinc-300">{cotacaoAtual.fornecedor}</p>
+                <p className="text-[10px] text-zinc-500 font-mono">{cotacaoAtual.cnpj}</p>
+              </div>
+              <p className="text-[14px] font-bold text-red-400">{formatarMoeda(cotacaoAtual.valor)}</p>
+            </div>
+          </div>
+
+          <div className="flex justify-center">
+            <svg className="h-4 w-4 text-zinc-600" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M8 3v10M5 10l3 3 3-3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+
+          {/* Nova cotação */}
+          <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+            <p className="mb-2 text-[9px] font-semibold uppercase tracking-widest text-emerald-500/70">Nova seleção</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[12px] font-medium text-zinc-200">{cotacaoNova.fornecedor}</p>
+                <p className="text-[10px] text-zinc-500 font-mono">{cotacaoNova.cnpj}</p>
+              </div>
+              <p className="text-[14px] font-bold text-emerald-400">{formatarMoeda(cotacaoNova.valor)}</p>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-zinc-500 leading-relaxed">
+            O pedido gerado anteriormente será <span className="text-red-400 font-medium">cancelado</span> e um novo pedido será criado aguardando aprovação.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-zinc-800 px-6 py-4">
+          <button
+            onClick={onCancelar}
+            disabled={carregando}
+            className="rounded-lg border border-zinc-700/60 px-4 py-2 text-[12px] font-medium text-zinc-400 transition-colors hover:border-zinc-600 hover:text-zinc-300 disabled:opacity-50"
+          >
+            Manter atual
+          </button>
+          <button
+            onClick={onConfirmar}
+            disabled={carregando}
+            className="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-[12px] font-medium text-white transition-colors hover:bg-amber-500 disabled:opacity-50"
+          >
+            {carregando ? (
+              <>
+                <svg className="h-3 w-3 animate-spin" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="8" cy="8" r="6" strokeOpacity="0.3"/><path d="M8 2a6 6 0 016 6" strokeLinecap="round"/>
+                </svg>
+                Trocando...
+              </>
+            ) : 'Sim, trocar cotação'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Estrelas ─────────────────────────────────────────────────────────────────
 
 function EstrelasAvaliacao({ nota }: { nota: number }) {
   return (
     <div className="flex items-center gap-0.5">
       {[1, 2, 3, 4, 5].map((i) => (
-        <svg
-          key={i}
-          className={`h-2.5 w-2.5 ${i <= Math.round(nota) ? 'text-amber-400' : 'text-zinc-700'}`}
-          viewBox="0 0 12 12" fill="currentColor"
-        >
-          <path d="M6 1l1.5 3 3.3.5-2.4 2.3.6 3.2L6 8.5 3 10.5l.6-3.2L1.2 5l3.3-.5z" />
+        <svg key={i} className={`h-2.5 w-2.5 ${i <= Math.round(nota) ? 'text-amber-400' : 'text-zinc-700'}`} viewBox="0 0 12 12" fill="currentColor">
+          <path d="M6 1l1.5 3 3.3.5-2.4 2.3.6 3.2L6 8.5 3 10.5l.6-3.2L1.2 5l3.3-.5z"/>
         </svg>
       ))}
       <span className="ml-1 text-[10px] text-zinc-500">{nota.toFixed(1)}</span>
@@ -29,62 +127,59 @@ function EstrelasAvaliacao({ nota }: { nota: number }) {
   )
 }
 
+// ─── Componente principal ─────────────────────────────────────────────────────
+
 export function ComparativoCotacao({
   solicitacoes,
   cotacoesPorSolicitacao,
   onSelecionar,
+  onDesselecionar,
   onAdicionarCotacao,
+  onCotacaoCriada,
 }: Props) {
-  const [solicitacaoAtiva, setSolicitacaoAtiva] = useState<string>(
-    solicitacoes[0]?.id ?? ''
-  )
-  // Estado do modal — gerenciado aqui mesmo
-  const [modalAberto, setModalAberto] = useState(false)
+  const [solicitacaoAtiva, setSolicitacaoAtiva] = useState<string>(solicitacoes[0]?.id ?? '')
+  const [modalCotacaoAberto, setModalCotacaoAberto] = useState(false)
+  const [carregando, setCarregando] = useState(false)
+  const [confirmacao, setConfirmacao] = useState<{
+    cotacaoAtual: CotacaoFornecedor
+    cotacaoNova: CotacaoFornecedor
+  } | null>(null)
 
-  // Dados da solicitação ativa
   const solicitacao = solicitacoes.find((s) => s.id === solicitacaoAtiva)
-
-  // Cotações locais — permite update otimista sem recarregar a page
-  const [cotacoesLocais, setCotacoesLocais] = useState<
-    Record<string, CotacaoFornecedor[]>
-  >(cotacoesPorSolicitacao)
-
-  const cotacoes = cotacoesLocais[solicitacaoAtiva] ?? []
+  const cotacoes = cotacoesPorSolicitacao[solicitacaoAtiva] ?? []
+  const cotacaoJaSelecionada = cotacoes.find((c) => c.selecionada)
   const menorValor = cotacoes.length > 0 ? Math.min(...cotacoes.map((c) => c.valor)) : 0
   const maiorValor = cotacoes.length > 0 ? Math.max(...cotacoes.map((c) => c.valor)) : 0
   const economia = maiorValor - menorValor
 
-  function handleAbrirModal() {
-    setModalAberto(true)
-    onAdicionarCotacao?.(solicitacaoAtiva)
+  async function handleTentarSelecionar(cotacao: CotacaoFornecedor) {
+    // Já tem uma selecionada e é diferente → pede confirmação
+    if (cotacaoJaSelecionada && cotacaoJaSelecionada.id !== cotacao.id) {
+      setConfirmacao({ cotacaoAtual: cotacaoJaSelecionada, cotacaoNova: cotacao })
+      return
+    }
+    await executarSelecao(cotacao)
   }
 
-  function handleCotacaoCriada(nova: CotacaoFornecedor) {
-    setCotacoesLocais((prev) => ({
-      ...prev,
-      [nova.solicitacao_id]: [nova, ...(prev[nova.solicitacao_id] ?? [])],
-    }))
-  }
-
-  function handleSelecionar(cotacaoId: string, solicitacaoId: string) {
-    // Update otimista: marca como selecionada localmente
-    setCotacoesLocais((prev) => ({
-      ...prev,
-      [solicitacaoId]: (prev[solicitacaoId] ?? []).map((c) => ({
-        ...c,
-        selecionada: c.id === cotacaoId,
-      })),
-    }))
-    onSelecionar?.(cotacaoId, solicitacaoId)
+  async function executarSelecao(cotacaoNova: CotacaoFornecedor) {
+    setCarregando(true)
+    try {
+      if (cotacaoJaSelecionada && cotacaoJaSelecionada.id !== cotacaoNova.id) {
+        // Cancela o pedido anterior antes de criar o novo
+        await onDesselecionar?.(cotacaoJaSelecionada.id, solicitacaoAtiva)
+      }
+      await onSelecionar?.(cotacaoNova.id, solicitacaoAtiva)
+    } finally {
+      setCarregando(false)
+      setConfirmacao(null)
+    }
   }
 
   if (solicitacoes.length === 0) {
     return (
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 py-16 text-center">
         <p className="text-[13px] text-zinc-400">Nenhuma solicitação em cotação</p>
-        <p className="mt-1 text-[11px] text-zinc-600">
-          Aprove uma solicitação para o status "Em Cotação" para começar.
-        </p>
+        <p className="mt-1 text-[11px] text-zinc-600">Aprove uma solicitação para o status "Em Cotação" para começar.</p>
       </div>
     )
   }
@@ -92,33 +187,47 @@ export function ComparativoCotacao({
   return (
     <>
       <div className="space-y-4">
-        {/* Seletor de solicitação */}
+        {/* Seletor de solicitações */}
         {solicitacoes.length > 1 && (
           <div className="flex flex-wrap gap-2">
             {solicitacoes.map((s) => {
-              const n = (cotacoesLocais[s.id] ?? []).length
+              const n = (cotacoesPorSolicitacao[s.id] ?? []).length
               const ativo = s.id === solicitacaoAtiva
+              const temSel = (cotacoesPorSolicitacao[s.id] ?? []).some((c) => c.selecionada)
               return (
                 <button
                   key={s.id}
                   onClick={() => setSolicitacaoAtiva(s.id)}
                   className={`rounded-lg border px-3 py-1.5 text-[11px] font-medium transition-all ${
-                    ativo
-                      ? 'border-indigo-500 bg-indigo-600/20 text-indigo-300'
-                      : 'border-zinc-700/60 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300'
+                    ativo ? 'border-indigo-500 bg-indigo-600/20 text-indigo-300' : 'border-zinc-700/60 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300'
                   }`}
                 >
                   {s.descricao}
                   <span className={`ml-1.5 text-[10px] ${ativo ? 'text-indigo-400' : 'text-zinc-600'}`}>
-                    {n} {n === 1 ? 'cotação' : 'cotações'}
+                    {n} cotaç{n === 1 ? 'ão' : 'ões'}
                   </span>
+                  {temSel && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />}
                 </button>
               )
             })}
           </div>
         )}
 
-        {/* Contexto da solicitação ativa */}
+        {/* Banner cotação selecionada */}
+        {cotacaoJaSelecionada && (
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+            <svg className="h-4 w-4 shrink-0 text-emerald-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M3 8l4 4 6-6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <p className="flex-1 text-[12px] text-emerald-300">
+              <span className="font-semibold">{cotacaoJaSelecionada.fornecedor}</span>
+              {' '}selecionada · {formatarMoeda(cotacaoJaSelecionada.valor)} · Pedido aguardando aprovação.
+            </p>
+            <span className="text-[10px] text-emerald-600">Clique em "Trocar" para substituir</span>
+          </div>
+        )}
+
+        {/* Cabeçalho da solicitação */}
         {solicitacao && (
           <div className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
             <div>
@@ -129,23 +238,23 @@ export function ComparativoCotacao({
               </p>
             </div>
             <button
-              onClick={handleAbrirModal}
+              onClick={() => { setModalCotacaoAberto(true); onAdicionarCotacao?.(solicitacaoAtiva) }}
               className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-[11px] font-medium text-white transition-colors hover:bg-indigo-500"
             >
               <svg className="h-3 w-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M8 3v10M3 8h10" strokeLinecap="round" />
+                <path d="M8 3v10M3 8h10" strokeLinecap="round"/>
               </svg>
               Adicionar cotação
             </button>
           </div>
         )}
 
-        {/* Mini métricas — só aparecem quando há cotações */}
+        {/* Mini métricas */}
         {cotacoes.length > 0 && (
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: 'Menor preço',      value: formatarMoeda(menorValor), color: 'text-emerald-400' },
-              { label: 'Maior preço',      value: formatarMoeda(maiorValor), color: 'text-red-400' },
+              { label: 'Menor preço',       value: formatarMoeda(menorValor), color: 'text-emerald-400' },
+              { label: 'Maior preço',       value: formatarMoeda(maiorValor), color: 'text-red-400' },
               { label: 'Economia possível', value: formatarMoeda(economia),   color: 'text-indigo-400' },
             ].map(({ label, value, color }) => (
               <div key={label} className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-center">
@@ -156,47 +265,40 @@ export function ComparativoCotacao({
           </div>
         )}
 
-        {/* Gráfico comparativo visual */}
+        {/* Comparativo visual */}
         {cotacoes.length > 1 && (
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-            <h3 className="mb-4 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-              Comparativo Visual
-            </h3>
+            <h3 className="mb-4 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Comparativo Visual</h3>
             <div className="space-y-3">
-              {[...cotacoes]
-                .sort((a, b) => a.valor - b.valor)
-                .map((c) => {
-                  const largura = maiorValor > 0 ? (c.valor / maiorValor) * 100 : 0
-                  const melhor = c.valor === menorValor
-                  return (
-                    <div key={c.id}>
-                      <div className="mb-1 flex items-center justify-between text-[11px]">
-                        <span className={`flex items-center gap-1.5 ${melhor ? 'font-medium text-zinc-200' : 'text-zinc-400'}`}>
-                          {melhor && (
-                            <span className="rounded bg-emerald-500/15 px-1 py-0.5 text-[8px] font-bold uppercase text-emerald-400">
-                              Melhor
-                            </span>
-                          )}
-                          {c.fornecedor}
-                        </span>
-                        <span className={melhor ? 'font-semibold text-emerald-400' : 'text-zinc-400'}>
-                          {formatarMoeda(c.valor)}
-                        </span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
-                        <div
-                          className={`h-2 rounded-full transition-all duration-500 ${melhor ? 'bg-emerald-500' : 'bg-indigo-500/50'}`}
-                          style={{ width: `${largura}%` }}
-                        />
-                      </div>
+              {[...cotacoes].sort((a, b) => a.valor - b.valor).map((c) => {
+                const largura = maiorValor > 0 ? (c.valor / maiorValor) * 100 : 0
+                const melhor = c.valor === menorValor
+                return (
+                  <div key={c.id}>
+                    <div className="mb-1 flex items-center justify-between text-[11px]">
+                      <span className={`flex items-center gap-1.5 ${melhor ? 'font-medium text-zinc-200' : 'text-zinc-400'}`}>
+                        {melhor && <span className="rounded bg-emerald-500/15 px-1 py-0.5 text-[8px] font-bold uppercase text-emerald-400">Melhor</span>}
+                        {c.selecionada && <span className="rounded bg-indigo-500/15 px-1 py-0.5 text-[8px] font-bold uppercase text-indigo-400">✓</span>}
+                        {c.fornecedor}
+                      </span>
+                      <span className={c.selecionada ? 'font-semibold text-indigo-400' : melhor ? 'font-semibold text-emerald-400' : 'text-zinc-400'}>
+                        {formatarMoeda(c.valor)}
+                      </span>
                     </div>
-                  )
-                })}
+                    <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-500 ${c.selecionada ? 'bg-indigo-500' : melhor ? 'bg-emerald-500' : 'bg-indigo-500/40'}`}
+                        style={{ width: `${largura}%` }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
 
-        {/* Tabela detalhada */}
+        {/* Tabela */}
         <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
           {cotacoes.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -209,7 +311,7 @@ export function ComparativoCotacao({
               <p className="text-[12px] font-medium text-zinc-400">Nenhuma cotação registrada</p>
               <p className="mt-1 text-[11px] text-zinc-600">Clique em "Adicionar cotação" para começar.</p>
               <button
-                onClick={handleAbrirModal}
+                onClick={() => { setModalCotacaoAberto(true); onAdicionarCotacao?.(solicitacaoAtiva) }}
                 className="mt-4 flex items-center gap-1.5 rounded-lg bg-indigo-600/80 px-4 py-2 text-[11px] font-medium text-white transition-colors hover:bg-indigo-600"
               >
                 <svg className="h-3 w-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
@@ -224,89 +326,64 @@ export function ComparativoCotacao({
                 <thead>
                   <tr className="border-b border-zinc-800 bg-zinc-900/80">
                     {['Fornecedor', 'CNPJ', 'Avaliação', 'Valor Total', 'Prazo', 'Pagamento', 'Frete', 'Condições', ''].map((h) => (
-                      <th
-                        key={h}
-                        className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-zinc-500"
-                      >
-                        {h}
-                      </th>
+                      <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-zinc-500">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/60">
-                  {[...cotacoes]
-                    .sort((a, b) => a.valor - b.valor)
-                    .map((c) => {
-                      const melhor = c.valor === menorValor
-                      return (
-                        <tr
-                          key={c.id}
-                          className={`transition-colors hover:bg-zinc-800/40 ${melhor ? 'bg-emerald-500/5' : ''}`}
-                        >
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              {melhor && (
-                                <span className="shrink-0 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-400">
-                                  Melhor
-                                </span>
-                              )}
-                              <span className={`text-[12px] font-medium ${melhor ? 'text-zinc-100' : 'text-zinc-300'}`}>
-                                {c.fornecedor}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 font-mono text-[10px] text-zinc-500">{c.cnpj}</td>
-                          <td className="px-4 py-3">
-                            <EstrelasAvaliacao nota={4.2} />
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3">
-                            <span className={`text-[13px] font-semibold ${melhor ? 'text-emerald-400' : 'text-zinc-300'}`}>
-                              {formatarMoeda(c.valor)}
+                  {[...cotacoes].sort((a, b) => a.valor - b.valor).map((c) => {
+                    const melhor = c.valor === menorValor
+                    return (
+                      <tr key={c.id} className={`transition-colors hover:bg-zinc-800/40 ${c.selecionada ? 'bg-indigo-500/5' : melhor ? 'bg-emerald-500/5' : ''}`}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {c.selecionada && <span className="shrink-0 rounded bg-indigo-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-indigo-400">✓ Selecionada</span>}
+                            {!c.selecionada && melhor && <span className="shrink-0 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-400">Melhor</span>}
+                            <span className={`text-[12px] font-medium ${c.selecionada ? 'text-zinc-100' : melhor ? 'text-zinc-100' : 'text-zinc-300'}`}>{c.fornecedor}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-[10px] text-zinc-500">{c.cnpj}</td>
+                        <td className="px-4 py-3"><EstrelasAvaliacao nota={4.2} /></td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <span className={`text-[13px] font-semibold ${c.selecionada ? 'text-indigo-400' : melhor ? 'text-emerald-400' : 'text-zinc-300'}`}>
+                            {formatarMoeda(c.valor)}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-[12px] text-zinc-400">{c.prazo_dias} dias</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-[11px] text-zinc-400">
+                          {{ a_vista: 'À vista', '7_dias': '7 dias', '14_dias': '14 dias', '30_dias': '30 dias', '60_dias': '60 dias' }[c.forma_pagamento ?? 'a_vista']}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-[11px]">
+                          {c.frete_incluso ? <span className="text-emerald-400">Incluso</span> : <span className="text-zinc-500">A cobrar</span>}
+                        </td>
+                        <td className="max-w-[140px] px-4 py-3">
+                          <p className="truncate text-[11px] text-zinc-500">{c.condicoes || '—'}</p>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          {c.selecionada ? (
+                            <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-500/15 px-3 py-1.5 text-[10px] font-medium text-indigo-400">
+                              <svg className="h-2.5 w-2.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M3 8l4 4 6-6" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                              Selecionada
                             </span>
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-[12px] text-zinc-400">
-                            {c.prazo_dias} dias
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-[11px] text-zinc-400">
-                            {{
-                              a_vista: 'À vista',
-                              '7_dias': '7 dias',
-                              '14_dias': '14 dias',
-                              '30_dias': '30 dias',
-                              '60_dias': '60 dias',
-                            }[c.forma_pagamento ?? 'a_vista']}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-[11px]">
-                            {c.frete_incluso ? (
-                              <span className="text-emerald-400">Incluso</span>
-                            ) : (
-                              <span className="text-zinc-500">A cobrar</span>
-                            )}
-                          </td>
-                          <td className="max-w-[140px] px-4 py-3">
-                            <p className="truncate text-[11px] text-zinc-500">{c.condicoes || '—'}</p>
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3">
-                            {c.selecionada ? (
-                              <span className="rounded-lg bg-emerald-500/15 px-3 py-1.5 text-[10px] font-medium text-emerald-400">
-                                ✓ Selecionada
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() => handleSelecionar(c.id, c.solicitacao_id)}
-                                className={`rounded-lg px-3 py-1.5 text-[10px] font-medium transition-colors ${
-                                  melhor
-                                    ? 'bg-emerald-600 text-white hover:bg-emerald-500'
-                                    : 'border border-zinc-700 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300'
-                                }`}
-                              >
-                                Selecionar
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
+                          ) : (
+                            <button
+                              onClick={() => handleTentarSelecionar(c)}
+                              disabled={carregando}
+                              className={`rounded-lg px-3 py-1.5 text-[10px] font-medium transition-colors disabled:opacity-50 ${
+                                melhor
+                                  ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                                  : 'border border-zinc-700 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300'
+                              }`}
+                            >
+                              {carregando ? '...' : cotacaoJaSelecionada ? 'Trocar' : 'Selecionar'}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -314,13 +391,22 @@ export function ComparativoCotacao({
         </div>
       </div>
 
-      {/* Modal — fora do flow para não ter problemas de z-index */}
       <NovaCotacaoModal
-        aberto={modalAberto}
+        aberto={modalCotacaoAberto}
         solicitacao={solicitacao ?? null}
-        onFechar={() => setModalAberto(false)}
-        onCriada={handleCotacaoCriada}
+        onFechar={() => setModalCotacaoAberto(false)}
+        onCriada={(nova) => onCotacaoCriada?.(nova)}
       />
+
+      {confirmacao && (
+        <ModalConfirmacaoTroca
+          cotacaoAtual={confirmacao.cotacaoAtual}
+          cotacaoNova={confirmacao.cotacaoNova}
+          carregando={carregando}
+          onConfirmar={() => executarSelecao(confirmacao.cotacaoNova)}
+          onCancelar={() => setConfirmacao(null)}
+        />
+      )}
     </>
   )
 }

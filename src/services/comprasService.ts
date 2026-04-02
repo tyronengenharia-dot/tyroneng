@@ -65,6 +65,7 @@ export async function createSolicitacao(
     usuario: payload.solicitante,
     referencia_id: data.id,
     referencia_tipo: 'solicitacao',
+    data: ''
   })
   return data as SolicitacaoCompra
 }
@@ -87,6 +88,7 @@ export async function updateSolicitacaoStatus(
     usuario,
     referencia_id: id,
     referencia_tipo: 'solicitacao',
+    data: ''
   })
   return data as SolicitacaoCompra
 }
@@ -147,35 +149,89 @@ export async function createCotacao(
     usuario: 'sistema',
     referencia_id: payload.solicitacao_id,
     referencia_tipo: 'cotacao',
+    data: ''
   })
   return data as CotacaoFornecedor
 }
+
+// ─── Selecionar cotação → cria pedido aguardando aprovação ───────────────────
 
 export async function selecionarCotacao(
   cotacao_id: string,
   solicitacao_id: string,
   usuario: string
-) {
-  // Desmarca todas as cotações da solicitação
+): Promise<{ cotacao: CotacaoFornecedor; pedido: PedidoCompra }> {
+  // 1. Desmarca todas as cotações da solicitação
   await supabase
     .from('cotacoes_fornecedor')
     .update({ selecionada: false })
     .eq('solicitacao_id', solicitacao_id)
 
-  // Marca a cotação escolhida
-  const { data, error } = await supabase
+  // 2. Marca a cotação escolhida
+  const { data: cotacao, error: errCotacao } = await supabase
     .from('cotacoes_fornecedor')
     .update({ selecionada: true })
     .eq('id', cotacao_id)
     .select()
     .single()
 
-  if (error) throw error
+  if (errCotacao) throw errCotacao
 
-  // Atualiza status da solicitação
-  await updateSolicitacaoStatus(solicitacao_id, 'aprovada', usuario)
+  // 3. Busca os dados da solicitação para montar o pedido
+  const solicitacao = await getSolicitacaoById(solicitacao_id)
 
-  return data as CotacaoFornecedor
+  // 4. Cria o pedido com status "aguardando_aprovacao" — 3ª pessoa vai autorizar
+  const pedido = await createPedido({
+    solicitacao_id,
+    cotacao_id,
+    fornecedor: cotacao.fornecedor,
+    descricao_item: solicitacao.descricao,
+    quantidade: solicitacao.quantidade,
+    unidade: solicitacao.unidade,
+    valor_unitario: solicitacao.quantidade > 0
+      ? cotacao.valor / solicitacao.quantidade
+      : cotacao.valor,
+    valor_final: cotacao.valor,
+    forma_pagamento: cotacao.forma_pagamento ?? 'a_vista',
+    aprovado_por: usuario,
+    data_aprovacao: new Date().toISOString().split('T')[0],
+    observacoes: cotacao.condicoes || undefined,
+    status: 'aguardando_aprovacao' as PedidoCompra['status'],
+  })
+
+  // 5. Atualiza solicitação para "em_cotacao" (ainda não aprovada — aguarda aprovação do pedido)
+  await updateSolicitacaoStatus(solicitacao_id, 'em_cotacao', usuario)
+
+  return { cotacao: cotacao as CotacaoFornecedor, pedido }
+}
+
+// ─── Desselecionar cotação → cancela o pedido vinculado ─────────────────────
+
+export async function desselecionarCotacao(
+  cotacao_id: string,
+  solicitacao_id: string
+): Promise<void> {
+  // Desmarca a cotação
+  await supabase
+    .from('cotacoes_fornecedor')
+    .update({ selecionada: false })
+    .eq('id', cotacao_id)
+
+  // Cancela o pedido vinculado a essa cotação (se existir e ainda não aprovado)
+  await supabase
+    .from('pedidos_compra')
+    .update({ status: 'cancelado' })
+    .eq('cotacao_id', cotacao_id)
+    .in('status', ['aguardando_aprovacao', 'rascunho'])
+
+  await registrarLog({
+    acao: 'Cotação desmarcada',
+    descricao: 'Pedido anterior cancelado para nova seleção',
+    usuario: 'sistema',
+    referencia_id: cotacao_id,
+    referencia_tipo: 'cotacao',
+    data: ''
+  })
 }
 
 export async function deleteCotacao(id: string) {
@@ -226,7 +282,84 @@ export async function createPedido(
     usuario: payload.aprovado_por,
     referencia_id: data.id,
     referencia_tipo: 'pedido',
+    data: ''
   })
+  return data as PedidoCompra
+}
+
+// ─── Autorizar pedido (3ª etapa) ─────────────────────────────────────────────
+
+export async function autorizarPedido(
+  pedido_id: string,
+  autorizador: string
+): Promise<PedidoCompra> {
+  const { data, error } = await supabase
+    .from('pedidos_compra')
+    .update({
+      status: 'aprovado',
+      aprovado_por: autorizador,
+      data_aprovacao: new Date().toISOString().split('T')[0],
+    })
+    .eq('id', pedido_id)
+    .select()
+    .single()
+
+  if (error) throw error
+
+  // Atualiza solicitação vinculada para "aprovada"
+  await updateSolicitacaoStatus(data.solicitacao_id, 'aprovada', autorizador)
+
+  await registrarLog({
+    acao: 'Compra autorizada',
+    descricao: `Pedido para ${data.fornecedor} aprovado — R$ ${data.valor_final.toLocaleString('pt-BR')}`,
+    usuario: autorizador,
+    referencia_id: pedido_id,
+    referencia_tipo: 'pedido',
+    data: ''
+  })
+
+  return data as PedidoCompra
+}
+
+// ─── Recusar pedido ───────────────────────────────────────────────────────────
+
+export async function recusarPedido(
+  pedido_id: string,
+  usuario: string
+): Promise<PedidoCompra> {
+  // Busca o pedido para saber a cotacao_id e solicitacao_id
+  const pedido = await getPedidoById(pedido_id)
+
+  // Cancela o pedido
+  const { data, error } = await supabase
+    .from('pedidos_compra')
+    .update({ status: 'cancelado' })
+    .eq('id', pedido_id)
+    .select()
+    .single()
+
+  if (error) throw error
+
+  // Desmarca a cotação vinculada para o item voltar ao fluxo de cotações
+  if (pedido.cotacao_id) {
+    await supabase
+      .from('cotacoes_fornecedor')
+      .update({ selecionada: false })
+      .eq('id', pedido.cotacao_id)
+  }
+
+  // Volta solicitação para "em_cotacao" para novo ciclo de seleção
+  await updateSolicitacaoStatus(pedido.solicitacao_id, 'em_cotacao', usuario)
+
+  await registrarLog({
+    acao: 'Compra recusada',
+    descricao: `Pedido para ${pedido.fornecedor} recusado — voltou para cotações`,
+    usuario,
+    referencia_id: pedido_id,
+    referencia_tipo: 'pedido',
+    data: ''
+  })
+
   return data as PedidoCompra
 }
 
@@ -248,6 +381,7 @@ export async function updatePedidoStatus(
     usuario,
     referencia_id: id,
     referencia_tipo: 'pedido',
+    data: ''
   })
   return data as PedidoCompra
 }
@@ -292,6 +426,7 @@ export async function confirmarEntrega(
     usuario: responsavel,
     referencia_id: id,
     referencia_tipo: 'entrega',
+    data: ''
   })
   return data as Entrega
 }
@@ -325,7 +460,8 @@ export async function getFornecedores(): Promise<Fornecedor[]> {
     cnpj: f.cnpj ? String(f.cnpj) : undefined,
     categoria: f.categoria ? String(f.categoria) : undefined,
     status: f.status ? String(f.status) : undefined,
-    contato: f.contato ? String(f.contato) : undefined,
+    endereco: f.endereco ? String(f.endereco) : undefined,
+    contato: f.contato_nome ? String(f.contato_nome) : undefined,
     telefone: f.telefone ? String(f.telefone) : undefined,
     email: f.email ? String(f.email) : undefined,
     avaliacao: f.avaliacao != null ? Number(f.avaliacao) : undefined,
@@ -410,7 +546,6 @@ export async function getMetricasCompras(): Promise<MetricasCompras> {
   const atrasadas = entregas.data.filter(e => e.status === 'atrasado').length
   const totalComprado = pedidos.data.reduce((acc, p) => acc + (p.valor_final ?? 0), 0)
 
-  // Últimos 7 dias
   const semanaAtras = new Date()
   semanaAtras.setDate(semanaAtras.getDate() - 7)
   const novasSemana = solicitacoes.data.filter(
@@ -419,7 +554,7 @@ export async function getMetricasCompras(): Promise<MetricasCompras> {
 
   return {
     total_comprado: totalComprado,
-    economia_cotacoes: totalComprado * 0.08, // ~8% de economia média
+    economia_cotacoes: totalComprado * 0.08,
     solicitacoes_pendentes: pendentes,
     entregas_atrasadas: atrasadas,
     variacao_total_pct: 12,
