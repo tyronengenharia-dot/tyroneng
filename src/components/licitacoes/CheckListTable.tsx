@@ -1,28 +1,141 @@
 'use client'
 
+import { useState } from 'react'
+import { ChecklistItem, ChecklistStatus, ChecklistCategoria } from '@/types/licitacao'
 import { ChecklistItemRow } from './ChecklistItemRow'
+import { CHECKLIST_CATEGORIAS, calcProgress } from '@/lib/licitacaoUtils'
 
-export function ChecklistTable({ items, setItems }: any) {
-  function toggleStatus(index: number) {
-    const updated = [...items]
+type Tab = 'todos' | ChecklistStatus
 
-    updated[index].status =
-      updated[index].status === 'concluido'
-        ? 'pendente'
-        : 'concluido'
+interface Props {
+  items: ChecklistItem[]
+  onChange: (items: ChecklistItem[]) => void
+}
 
-    setItems(updated)
+export function ChecklistTable({ items, onChange }: Props) {
+  const [tab, setTab] = useState<Tab>('todos')
+  const [newNome, setNewNome] = useState('')
+  const [newCat, setNewCat] = useState<ChecklistCategoria>('Documentação')
+
+  const filtered = tab === 'todos' ? items : items.filter(i => i.status === tab)
+  const pct = calcProgress(items)
+  const done = items.filter(i => i.status === 'concluido').length
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'todos', label: 'Todos' },
+    { key: 'pendente', label: 'Pendentes' },
+    { key: 'andamento', label: 'Em andamento' },
+    { key: 'concluido', label: 'Concluídos' },
+  ]
+
+  function cycleStatus(id: string) {
+    const cycle: Record<ChecklistStatus, ChecklistStatus> = {
+      pendente: 'andamento',
+      andamento: 'concluido',
+      concluido: 'pendente',
+    }
+    onChange(items.map(i => i.id === id ? { ...i, status: cycle[i.status] } : i))
+  }
+
+  function changeStatus(id: string, status: ChecklistStatus) {
+    onChange(items.map(i => i.id === id ? { ...i, status } : i))
+  }
+
+  function deleteItem(id: string) {
+    onChange(items.filter(i => i.id !== id))
+  }
+
+  function addItem() {
+    if (!newNome.trim()) return
+    const novo: ChecklistItem = {
+      id: crypto.randomUUID(),
+      nome: newNome.trim(),
+      categoria: newCat,
+      status: 'pendente',
+    }
+    onChange([...items, novo])
+    setNewNome('')
   }
 
   return (
-    <div className="space-y-2">
-      {items.map((item: any, i: number) => (
-        <ChecklistItemRow
-          key={item.id}
-          item={item}
-          onToggle={() => toggleStatus(i)}
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+        <div>
+          <h3 className="text-sm font-semibold text-zinc-100 mb-2">Checklist do Edital</h3>
+          <div className="flex gap-1">
+            {tabs.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                  tab === key
+                    ? 'bg-blue-500/15 text-blue-400'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="text-right">
+          <p className="text-xs text-zinc-500 mb-1.5">{done}/{items.length} concluídos</p>
+          <div className="w-36 h-1.5 bg-zinc-800 rounded-full">
+            <div
+              className="h-1.5 bg-green-500 rounded-full transition-all duration-300"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Add item */}
+      <div className="flex gap-2 px-5 py-3 border-b border-zinc-800 bg-zinc-900/50">
+        <input
+          type="text"
+          placeholder="Adicionar item ao checklist..."
+          value={newNome}
+          onChange={e => setNewNome(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && addItem()}
+          className="flex-1 bg-zinc-800 border border-zinc-700 text-sm text-zinc-100 placeholder-zinc-500 rounded-lg px-3 py-2 outline-none focus:border-blue-500/50 transition-colors"
         />
-      ))}
+        <select
+          value={newCat}
+          onChange={e => setNewCat(e.target.value as ChecklistCategoria)}
+          className="bg-zinc-800 border border-zinc-700 text-sm text-zinc-300 rounded-lg px-3 py-2 outline-none focus:border-blue-500/50"
+        >
+          {CHECKLIST_CATEGORIAS.map(cat => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+        <button
+          onClick={addItem}
+          className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 rounded-lg transition-colors whitespace-nowrap"
+        >
+          + Adicionar
+        </button>
+      </div>
+
+      {/* Items */}
+      <div className="max-h-80 overflow-y-auto">
+        {filtered.length === 0 ? (
+          <div className="text-center py-10 text-zinc-600 text-sm">
+            {tab === 'todos' ? 'Nenhum item no checklist ainda.' : 'Nenhum item com este status.'}
+          </div>
+        ) : (
+          filtered.map(item => (
+            <ChecklistItemRow
+              key={item.id}
+              item={item}
+              onCycleStatus={() => cycleStatus(item.id)}
+              onChangeStatus={status => changeStatus(item.id, status)}
+              onDelete={() => deleteItem(item.id)}
+            />
+          ))
+        )}
+      </div>
     </div>
   )
 }

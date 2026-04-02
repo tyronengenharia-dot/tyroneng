@@ -153,6 +153,12 @@ export default function ComprasPage() {
 
   useEffect(() => { carregarDados() }, [carregarDados])
 
+    // Recarrega logs ao entrar na aba de auditoria
+  useEffect(() => {
+    if (activeTab !== 'auditoria') return
+    getAuditoriaLogs(100).then(setLogs).catch(console.warn)
+  }, [activeTab])
+
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   const handleNovaSolicitacaoCriada = (nova: SolicitacaoCompra) => {
@@ -174,7 +180,7 @@ export default function ComprasPage() {
   // atualiza o estado local, e navega para a aba de cotações.
   const handleCotar = async (solicitacao: SolicitacaoCompra) => {
     try {
-      await updateSolicitacaoStatus(solicitacao.id, 'em_cotacao', 'sistema')
+      await updateSolicitacaoStatus(solicitacao.id, 'em_cotacao', 'comprador')
       setSolicitacoes((prev) =>
         prev.map((s) => s.id === solicitacao.id ? { ...s, status: 'em_cotacao' as const } : s)
       )
@@ -189,16 +195,23 @@ export default function ComprasPage() {
   }
 
   const handleSelecionarCotacao = async (cotacaoId: string, solicitacaoId: string) => {
-    const { pedido } = await selecionarCotacao(cotacaoId, solicitacaoId, 'cotador')
-    setCotacoes((prev) =>
-      prev.map((c) =>
-        c.solicitacao_id === solicitacaoId
-          ? { ...c, selecionada: c.id === cotacaoId }
-          : c
+    try {
+      const { pedido } = await selecionarCotacao(cotacaoId, solicitacaoId, 'cotador')
+      setCotacoes((prev) =>
+        prev.map((c) =>
+          c.solicitacao_id === solicitacaoId
+            ? { ...c, selecionada: c.id === cotacaoId }
+            : c
+        )
       )
-    )
-    setPedidos((prev) => [pedido, ...prev.filter((p) => p.cotacao_id !== cotacaoId)])
-    setActiveTab('pedidos')
+      setPedidos((prev) => [pedido, ...prev.filter((p) => p.cotacao_id !== cotacaoId)])
+      setActiveTab('pedidos')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : JSON.stringify(err)
+      console.error('[Compras] Erro ao selecionar cotação:', msg)
+      // Mostra o erro para o usuário — provavelmente constraint no banco
+      alert(`Erro ao enviar para pedidos:\n\n${msg}\n\nVerifique se a coluna "status" da tabela pedidos_compra aceita o valor "aguardando_aprovacao". Rode o SQL indicado no console.`)
+    }
   }
 
   const handleDesselecionarCotacao = async (cotacaoId: string, solicitacaoId: string) => {
@@ -215,20 +228,16 @@ export default function ComprasPage() {
     )
   }
 
-  const handleAutorizarPedido = async (pedido: PedidoCompra) => {
-    const atualizado = await autorizarPedido(pedido.id, 'autorizador')
-    setPedidos((prev) => prev.map((p) => p.id === pedido.id ? atualizado : p))
-    setSolicitacoes((prev) =>
-      prev.map((s) => s.id === pedido.solicitacao_id ? { ...s, status: 'aprovada' as const } : s)
-    )
-    try {
-      const novasEntregas = await getEntregas()
-      setEntregas(novasEntregas)
-    } catch (err) {
-      console.warn('[Compras] Erro ao recarregar entregas:', err)
+    const handleAutorizarPedido = async (pedido: PedidoCompra) => {
+      const { pedido: atualizado, entrega } = await autorizarPedido(pedido.id, 'autorizador')
+      
+      setPedidos((prev) => prev.map((p) => p.id === pedido.id ? atualizado : p))
+      setSolicitacoes((prev) =>
+        prev.map((s) => s.id === pedido.solicitacao_id ? { ...s, status: 'aprovada' as const } : s)
+      )
+      setEntregas((prev) => [entrega, ...prev])
+      setActiveTab('entregas')
     }
-    setActiveTab('entregas')
-  }
 
   const handleRecusarPedido = async (pedido: PedidoCompra) => {
     const atualizado = await recusarPedido(pedido.id, 'autorizador')
@@ -244,15 +253,22 @@ export default function ComprasPage() {
     setActiveTab('cotacoes')
   }
 
-  const handleConfirmarEntrega = async (id: string) => {
-    await confirmarEntrega(id, 'usuário')
-    setEntregas((prev) =>
-      prev.map((e) => e.id === id
-        ? { ...e, status: 'entregue' as const, data_real: new Date().toISOString().split('T')[0] }
-        : e
+    const handleConfirmarEntrega = async (id: string) => {
+      await confirmarEntrega(id, 'usuário')
+      setEntregas((prev) =>
+        prev.map((e) => e.id === id
+          ? { ...e, status: 'entregue' as const, data_real: new Date().toISOString().split('T')[0] }
+          : e
+        )
       )
-    )
-  }
+      // Recarrega métricas para refletir o novo total comprado
+      try {
+        const novasMetricas = await getMetricasCompras()
+        setMetricas(novasMetricas)
+      } catch (err) {
+        console.warn('[Compras] Erro ao recarregar métricas:', err)
+      }
+    }
 
   // ── Dados derivados ───────────────────────────────────────────────────────
 
@@ -302,6 +318,10 @@ export default function ComprasPage() {
     { id: 'concluidos',   label: 'Concluídos' },
     { id: 'auditoria',    label: 'Auditoria' },
   ]
+
+  const handleSolicitacaoExcluida = (id: string) => {
+  setSolicitacoes((prev) => prev.filter((s) => s.id !== id))
+}
 
   return (
     <>
@@ -367,6 +387,7 @@ export default function ComprasPage() {
                   onCotar={handleCotar}
                   onVerDetalhes={() => {}}
                   onNovaSolicitacao={() => setModalAberto(true)}
+                  onExcluida={handleSolicitacaoExcluida}
                 />
               )}
 

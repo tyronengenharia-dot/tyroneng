@@ -177,6 +177,15 @@ export async function selecionarCotacao(
 
   if (errCotacao) throw errCotacao
 
+  await registrarLog({
+  acao: 'Cotação selecionada',
+  descricao: `${cotacao.fornecedor} selecionado — R$ ${cotacao.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} — prazo ${cotacao.prazo_dias} dias`,
+  usuario,
+  referencia_id: solicitacao_id,
+  referencia_tipo: 'cotacao',
+  data: ''
+})
+
   // 3. Busca os dados da solicitação para montar o pedido
   const solicitacao = await getSolicitacaoById(solicitacao_id)
 
@@ -292,7 +301,7 @@ export async function createPedido(
 export async function autorizarPedido(
   pedido_id: string,
   autorizador: string
-): Promise<PedidoCompra> {
+): Promise<{ pedido: PedidoCompra; entrega: Entrega }> {
   const { data, error } = await supabase
     .from('pedidos_compra')
     .update({
@@ -306,19 +315,33 @@ export async function autorizarPedido(
 
   if (error) throw error
 
-  // Atualiza solicitação vinculada para "aprovada"
   await updateSolicitacaoStatus(data.solicitacao_id, 'aprovada', autorizador)
+
+  const cotacao = data.cotacao_id
+    ? await supabase.from('cotacoes_fornecedor').select('prazo_dias').eq('id', data.cotacao_id).single()
+    : null
+  const prazoDias = cotacao?.data?.prazo_dias ?? 7
+  const dataPrevista = new Date()
+  dataPrevista.setDate(dataPrevista.getDate() + prazoDias)
+
+  const entrega = await createEntrega({
+    pedido_id: data.id,
+    fornecedor: data.fornecedor,
+    descricao_item: data.descricao_item,
+    data_prevista: dataPrevista.toISOString().split('T')[0],
+    status: 'aguardando',
+  })
 
   await registrarLog({
     acao: 'Compra autorizada',
-    descricao: `Pedido para ${data.fornecedor} aprovado — R$ ${data.valor_final.toLocaleString('pt-BR')}`,
+    descricao: `${data.fornecedor} — R$ ${data.valor_final.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} — entrega prevista em ${prazoDias} dias`,
     usuario: autorizador,
     referencia_id: pedido_id,
     referencia_tipo: 'pedido',
     data: ''
   })
 
-  return data as PedidoCompra
+  return { pedido: data as PedidoCompra, entrega }
 }
 
 // ─── Recusar pedido ───────────────────────────────────────────────────────────
@@ -352,11 +375,11 @@ export async function recusarPedido(
   await updateSolicitacaoStatus(pedido.solicitacao_id, 'em_cotacao', usuario)
 
   await registrarLog({
-    acao: 'Compra recusada',
-    descricao: `Pedido para ${pedido.fornecedor} recusado — voltou para cotações`,
+    acao: 'Status alterado para em_cotacao',
+    descricao: 'Solicitação movida para "em_cotacao"',
     usuario,
-    referencia_id: pedido_id,
-    referencia_tipo: 'pedido',
+    referencia_id: pedido.solicitacao_id,
+    referencia_tipo: 'solicitacao',
     data: ''
   })
 
@@ -377,7 +400,8 @@ export async function updatePedidoStatus(
 
   if (error) throw error
   await registrarLog({
-    acao: `Pedido ${status}`,
+    acao: 'Compra recusada',
+    descricao: `Pedido de ${data.fornecedor} recusado — devolvido para cotações`,
     usuario,
     referencia_id: id,
     referencia_tipo: 'pedido',
@@ -421,13 +445,16 @@ export async function confirmarEntrega(
     .single()
 
   if (error) throw error
+
   await registrarLog({
     acao: 'Entrega confirmada',
+    descricao: `"${data.descricao_item}" recebido de ${data.fornecedor}`,
     usuario: responsavel,
     referencia_id: id,
     referencia_tipo: 'entrega',
     data: ''
   })
+
   return data as Entrega
 }
 
@@ -523,7 +550,7 @@ export async function registrarLog(
     .from('auditoria_compras')
     .insert([{
       ...payload,
-      data: payload.data ?? new Date().toISOString(),
+      data: payload.data || new Date().toISOString(),
     }])
 
   if (error) console.error('Erro ao registrar log:', error)
@@ -535,7 +562,7 @@ export async function getMetricasCompras(): Promise<MetricasCompras> {
   const [solicitacoes, entregas, pedidos] = await Promise.all([
     supabase.from('solicitacoes_compra').select('status, created_at'),
     supabase.from('entregas').select('status, data_prevista'),
-    supabase.from('pedidos_compra').select('valor_final, created_at'),
+    supabase.from('pedidos_compra').select('valor_final, created_at').eq('status', 'aprovado'),
   ])
 
   if (solicitacoes.error) throw solicitacoes.error
@@ -562,4 +589,19 @@ export async function getMetricasCompras(): Promise<MetricasCompras> {
     solicitacoes_novas_semana: novasSemana,
     entregas_atrasadas_variacao: -2,
   }
+}
+
+// ─── Criar entrega ───────────────────────────────────────────────────────────
+
+export async function createEntrega(
+  payload: Omit<Entrega, 'id'>
+) {
+  const { data, error } = await supabase
+    .from('entregas')
+    .insert([payload])
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as Entrega
 }

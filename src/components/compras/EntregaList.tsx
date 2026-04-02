@@ -233,7 +233,7 @@ export function EntregaList({ data, onConfirmar }: Props) {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <BadgeStatus status={e.status} />
-                      {(e.status === 'transporte' || e.status === 'atrasado') && (
+                      {(e.status === 'aguardando' || e.status === 'transporte' || e.status === 'atrasado') && (
                         <button
                           onClick={() => setConfirmandoId(e.id)}
                           className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-semibold text-white opacity-0 transition-all hover:bg-emerald-500 group-hover:opacity-100"

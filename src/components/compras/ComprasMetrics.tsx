@@ -42,10 +42,9 @@ interface Props {
 }
 
 export function ComprasMetrics({ metricas }: Props) {
+
   const fmt = (v: number) =>
-    v >= 1000
-      ? `R$ ${(v / 1000).toFixed(0)}k`
-      : `R$ ${v.toLocaleString('pt-BR')}`
+    `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
