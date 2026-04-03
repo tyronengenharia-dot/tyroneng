@@ -32,19 +32,25 @@ export interface AcervoDocument {
   status: DocumentStatus
   description?: string
   tags?: string[]
+  diasRenovar?: number
+  orgao?: string
+  numero?: string
+  urlEmissao?: string
+  // caminho interno no bucket — necessário para deletar do Storage
+  arquivoPath?: string
 }
 
 export interface Professional {
   id: string
   name: string
-  role: ProfessionalRole
-  registrationNumber: string // CREA/CAU
+  role: string
+  registrationNumber: string
   avatar?: string
   email: string
   phone: string
   specialty: string[]
   documents: AcervoDocument[]
-  documentStatus: DocumentStatus // overall status
+  documentStatus: DocumentStatus
   joinedAt: string
   active: boolean
 }
@@ -59,4 +65,17 @@ export interface AcervoStats {
   expiringSoon: number
   expired: number
   pendingUpload: number
+}
+
+export interface DocumentFormData {
+  nome: string
+  orgao: string
+  numero: string
+  category: DocumentCategory
+  dataEmissao: string
+  temValidade: boolean
+  dataValidade: string
+  diasRenovar: string
+  urlEmissao: string
+  file: File | null
 }

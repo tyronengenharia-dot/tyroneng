@@ -6,6 +6,7 @@ import { MODALIDADES } from '@/lib/licitacaoUtils'
 
 interface Props {
   licitacao?: Licitacao | null
+  saving?: boolean
   onSave: (data: LicitacaoFormData) => void
   onClose: () => void
 }
@@ -26,25 +27,25 @@ const empty: LicitacaoFormData = {
   observacoes: '',
 }
 
-export function LicitacaoForm({ licitacao, onSave, onClose }: Props) {
+export function LicitacaoForm({ licitacao, saving = false, onSave, onClose }: Props) {
   const [form, setForm] = useState<LicitacaoFormData>(empty)
 
   useEffect(() => {
     if (licitacao) {
       setForm({
-        titulo: licitacao.titulo,
-        orgao: licitacao.orgao,
-        local: licitacao.local,
+        titulo:        licitacao.titulo,
+        orgao:         licitacao.orgao,
+        local:         licitacao.local,
         valorEstimado: licitacao.valorEstimado,
-        dataEntrega: licitacao.dataEntrega,
-        modalidade: licitacao.modalidade,
-        processo: licitacao.processo,
-        lote: licitacao.lote,
-        plataforma: licitacao.plataforma,
-        dataDisputa: licitacao.dataDisputa,
-        horaDisputa: licitacao.horaDisputa,
-        responsavel: licitacao.responsavel,
-        observacoes: licitacao.observacoes,
+        dataEntrega:   licitacao.dataEntrega,
+        modalidade:    licitacao.modalidade,
+        processo:      licitacao.processo,
+        lote:          licitacao.lote,
+        plataforma:    licitacao.plataforma,
+        dataDisputa:   licitacao.dataDisputa,
+        horaDisputa:   licitacao.horaDisputa,
+        responsavel:   licitacao.responsavel,
+        observacoes:   licitacao.observacoes,
       })
     } else {
       setForm(empty)
@@ -56,7 +57,7 @@ export function LicitacaoForm({ licitacao, onSave, onClose }: Props) {
   }
 
   function handleSave() {
-    if (!form.titulo.trim()) return
+    if (!form.titulo.trim() || saving) return
     onSave(form)
     onClose()
   }
@@ -80,42 +81,25 @@ export function LicitacaoForm({ licitacao, onSave, onClose }: Props) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Título / Objeto *</label>
-              <input
-                className={inputClass}
-                placeholder="Ex: Construção de escola municipal"
-                value={form.titulo}
-                onChange={e => set('titulo', e.target.value)}
-              />
+              <input className={inputClass} placeholder="Ex: Construção de escola municipal"
+                value={form.titulo} onChange={e => set('titulo', e.target.value)} />
             </div>
             <div>
               <label className={labelClass}>Órgão licitante</label>
-              <input
-                className={inputClass}
-                placeholder="Ex: Prefeitura de Niterói"
-                value={form.orgao}
-                onChange={e => set('orgao', e.target.value)}
-              />
+              <input className={inputClass} placeholder="Ex: Prefeitura de Niterói"
+                value={form.orgao} onChange={e => set('orgao', e.target.value)} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Valor estimado (R$)</label>
-              <input
-                className={inputClass}
-                type="number"
-                placeholder="0"
-                value={form.valorEstimado || ''}
-                onChange={e => set('valorEstimado', Number(e.target.value))}
-              />
+              <input className={inputClass} type="number" placeholder="0"
+                value={form.valorEstimado || ''} onChange={e => set('valorEstimado', Number(e.target.value))} />
             </div>
             <div>
               <label className={labelClass}>Modalidade</label>
-              <select
-                className={inputClass}
-                value={form.modalidade}
-                onChange={e => set('modalidade', e.target.value)}
-              >
+              <select className={inputClass} value={form.modalidade} onChange={e => set('modalidade', e.target.value)}>
                 {MODALIDADES.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
@@ -124,111 +108,75 @@ export function LicitacaoForm({ licitacao, onSave, onClose }: Props) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Número do processo / edital</label>
-              <input
-                className={inputClass}
-                placeholder="Ex: 001/2025"
-                value={form.processo}
-                onChange={e => set('processo', e.target.value)}
-              />
+              <input className={inputClass} placeholder="Ex: 001/2025"
+                value={form.processo} onChange={e => set('processo', e.target.value)} />
             </div>
             <div>
               <label className={labelClass}>Nº lote / item</label>
-              <input
-                className={inputClass}
-                placeholder="Ex: Lote 2"
-                value={form.lote}
-                onChange={e => set('lote', e.target.value)}
-              />
+              <input className={inputClass} placeholder="Ex: Lote 2"
+                value={form.lote} onChange={e => set('lote', e.target.value)} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Local da disputa</label>
-              <input
-                className={inputClass}
-                placeholder="Ex: Sala de licitações, Ed. Sede"
-                value={form.local}
-                onChange={e => set('local', e.target.value)}
-              />
+              <input className={inputClass} placeholder="Ex: Sala de licitações, Ed. Sede"
+                value={form.local} onChange={e => set('local', e.target.value)} />
             </div>
             <div>
               <label className={labelClass}>Plataforma (se eletrônico)</label>
-              <input
-                className={inputClass}
-                placeholder="Ex: ComprasNet, Licitanet..."
-                value={form.plataforma}
-                onChange={e => set('plataforma', e.target.value)}
-              />
+              <input className={inputClass} placeholder="Ex: ComprasNet, Licitanet..."
+                value={form.plataforma} onChange={e => set('plataforma', e.target.value)} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Data da disputa</label>
-              <input
-                className={inputClass}
-                type="date"
-                value={form.dataDisputa}
-                onChange={e => set('dataDisputa', e.target.value)}
-              />
+              <input className={inputClass} type="date"
+                value={form.dataDisputa} onChange={e => set('dataDisputa', e.target.value)} />
             </div>
             <div>
               <label className={labelClass}>Horário</label>
-              <input
-                className={inputClass}
-                type="time"
-                value={form.horaDisputa}
-                onChange={e => set('horaDisputa', e.target.value)}
-              />
+              <input className={inputClass} type="time"
+                value={form.horaDisputa} onChange={e => set('horaDisputa', e.target.value)} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Prazo entrega proposta</label>
-              <input
-                className={inputClass}
-                type="date"
-                value={form.dataEntrega}
-                onChange={e => set('dataEntrega', e.target.value)}
-              />
+              <input className={inputClass} type="date"
+                value={form.dataEntrega} onChange={e => set('dataEntrega', e.target.value)} />
             </div>
             <div>
               <label className={labelClass}>Responsável interno</label>
-              <input
-                className={inputClass}
-                placeholder="Ex: João Silva"
-                value={form.responsavel}
-                onChange={e => set('responsavel', e.target.value)}
-              />
+              <input className={inputClass} placeholder="Ex: João Silva"
+                value={form.responsavel} onChange={e => set('responsavel', e.target.value)} />
             </div>
           </div>
 
           <div>
             <label className={labelClass}>Observações</label>
-            <textarea
-              className={`${inputClass} resize-none`}
-              rows={3}
+            <textarea className={`${inputClass} resize-none`} rows={3}
               placeholder="Notas importantes sobre este edital..."
-              value={form.observacoes}
-              onChange={e => set('observacoes', e.target.value)}
-            />
+              value={form.observacoes} onChange={e => set('observacoes', e.target.value)} />
           </div>
         </div>
 
         <div className="flex justify-end gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm px-5 py-2.5 rounded-lg border border-zinc-700 transition-colors"
-          >
+          <button onClick={onClose}
+            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm px-5 py-2.5 rounded-lg border border-zinc-700 transition-colors">
             Cancelar
           </button>
-          <button
-            onClick={handleSave}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-6 py-2.5 rounded-lg transition-colors"
-          >
-            Salvar
+          <button onClick={handleSave} disabled={saving || !form.titulo.trim()}
+            className={`text-sm font-medium px-6 py-2.5 rounded-lg transition-colors ${
+              saving || !form.titulo.trim()
+                ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}>
+            {saving ? 'Salvando...' : 'Salvar'}
           </button>
         </div>
       </div>

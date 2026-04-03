@@ -1,31 +1,19 @@
-import Link from 'next/link'
+import { PropostaStatsBar } from '@/components/propostas/PropostaStatsBar'
 import { PropostaTable } from '@/components/propostas/PropostaTable'
-import '@/app/globals.css'
+import { MOCK_PROPOSTAS } from '@/lib/proposta-utils'
 
-const mock = [
-  {
-    id: '1',
-    cliente: 'Prefeitura RJ',
-    obra: 'Reforma Escola',
-    valor: 120000,
-    status: 'enviada'
-  }
-]
+// Em produção: buscar do banco via Server Component ou React Query
+async function getPropostas() {
+  return MOCK_PROPOSTAS
+}
 
-export default function Page() {
+export default async function PropostasPage() {
+  const propostas = await getPropostas()
+
   return (
-    <div className="page-dark">
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <h1>Propostas</h1>
-
-        <Link href="/propostas/nova">
-          <button className="button">+ Nova</button>
-        </Link>
-      </div>
-
-      <div style={{ marginTop: 20 }}>
-        <PropostaTable data={mock as any} />
-      </div>
+    <div>
+      <PropostaStatsBar propostas={propostas} />
+      <PropostaTable data={propostas} />
     </div>
   )
 }

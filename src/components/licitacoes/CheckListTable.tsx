@@ -9,52 +9,39 @@ type Tab = 'todos' | ChecklistStatus
 
 interface Props {
   items: ChecklistItem[]
-  onChange: (items: ChecklistItem[]) => void
+  onAddItem: (nome: string, categoria: ChecklistCategoria) => Promise<void>
+  onCycleStatus: (itemId: string) => Promise<void>
+  onChangeStatus: (itemId: string, status: ChecklistStatus) => Promise<void>
+  onDelete: (itemId: string) => Promise<void>
 }
 
-export function ChecklistTable({ items, onChange }: Props) {
+export function ChecklistTable({ items, onAddItem, onCycleStatus, onChangeStatus, onDelete }: Props) {
   const [tab, setTab] = useState<Tab>('todos')
-  const [newNome, setNewNome] = useState('')
-  const [newCat, setNewCat] = useState<ChecklistCategoria>('Documentação')
+  const [nome, setNome] = useState('')
+  const [categoria, setCategoria] = useState<ChecklistCategoria>('Documentação')
+  const [adding, setAdding] = useState(false)
 
   const filtered = tab === 'todos' ? items : items.filter(i => i.status === tab)
   const pct = calcProgress(items)
   const done = items.filter(i => i.status === 'concluido').length
+  const hasText = nome.trim().length > 0
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'todos', label: 'Todos' },
-    { key: 'pendente', label: 'Pendentes' },
+    { key: 'todos',     label: 'Todos' },
+    { key: 'pendente',  label: 'Pendentes' },
     { key: 'andamento', label: 'Em andamento' },
     { key: 'concluido', label: 'Concluídos' },
   ]
 
-  function cycleStatus(id: string) {
-    const cycle: Record<ChecklistStatus, ChecklistStatus> = {
-      pendente: 'andamento',
-      andamento: 'concluido',
-      concluido: 'pendente',
+  async function handleAdd() {
+    if (!hasText || adding) return
+    setAdding(true)
+    try {
+      await onAddItem(nome.trim(), categoria)
+      setNome('')
+    } finally {
+      setAdding(false)
     }
-    onChange(items.map(i => i.id === id ? { ...i, status: cycle[i.status] } : i))
-  }
-
-  function changeStatus(id: string, status: ChecklistStatus) {
-    onChange(items.map(i => i.id === id ? { ...i, status } : i))
-  }
-
-  function deleteItem(id: string) {
-    onChange(items.filter(i => i.id !== id))
-  }
-
-  function addItem() {
-    if (!newNome.trim()) return
-    const novo: ChecklistItem = {
-      id: crypto.randomUUID(),
-      nome: newNome.trim(),
-      categoria: newCat,
-      status: 'pendente',
-    }
-    onChange([...items, novo])
-    setNewNome('')
   }
 
   return (
@@ -96,25 +83,30 @@ export function ChecklistTable({ items, onChange }: Props) {
         <input
           type="text"
           placeholder="Adicionar item ao checklist..."
-          value={newNome}
-          onChange={e => setNewNome(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && addItem()}
+          value={nome}
+          onChange={e => setNome(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleAdd()}
           className="flex-1 bg-zinc-800 border border-zinc-700 text-sm text-zinc-100 placeholder-zinc-500 rounded-lg px-3 py-2 outline-none focus:border-blue-500/50 transition-colors"
         />
         <select
-          value={newCat}
-          onChange={e => setNewCat(e.target.value as ChecklistCategoria)}
-          className="bg-zinc-800 border border-zinc-700 text-sm text-zinc-300 rounded-lg px-3 py-2 outline-none focus:border-blue-500/50"
+          value={categoria}
+          onChange={e => setCategoria(e.target.value as ChecklistCategoria)}
+          className="bg-zinc-800 border border-zinc-700 text-sm text-zinc-300 rounded-lg px-3 py-2 outline-none focus:border-blue-500/50 transition-colors"
         >
           {CHECKLIST_CATEGORIAS.map(cat => (
             <option key={cat} value={cat}>{cat}</option>
           ))}
         </select>
         <button
-          onClick={addItem}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 rounded-lg transition-colors whitespace-nowrap"
+          onClick={handleAdd}
+          disabled={!hasText || adding}
+          className={`text-sm font-medium px-4 rounded-lg transition-all whitespace-nowrap ${
+            hasText && !adding
+              ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
+              : 'bg-zinc-800 text-zinc-600 cursor-not-allowed border border-zinc-700'
+          }`}
         >
-          + Adicionar
+          {adding ? 'Adicionando...' : '+ Adicionar'}
         </button>
       </div>
 
@@ -122,16 +114,18 @@ export function ChecklistTable({ items, onChange }: Props) {
       <div className="max-h-80 overflow-y-auto">
         {filtered.length === 0 ? (
           <div className="text-center py-10 text-zinc-600 text-sm">
-            {tab === 'todos' ? 'Nenhum item no checklist ainda.' : 'Nenhum item com este status.'}
+            {tab === 'todos'
+              ? 'Nenhum item no checklist ainda. Adicione acima.'
+              : 'Nenhum item com este status.'}
           </div>
         ) : (
           filtered.map(item => (
             <ChecklistItemRow
               key={item.id}
               item={item}
-              onCycleStatus={() => cycleStatus(item.id)}
-              onChangeStatus={status => changeStatus(item.id, status)}
-              onDelete={() => deleteItem(item.id)}
+              onCycleStatus={() => onCycleStatus(item.id)}
+              onChangeStatus={status => onChangeStatus(item.id, status)}
+              onDelete={() => onDelete(item.id)}
             />
           ))
         )}

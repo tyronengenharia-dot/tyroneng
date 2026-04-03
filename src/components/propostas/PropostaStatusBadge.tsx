@@ -1,23 +1,24 @@
 import { PropostaStatus } from '@/types/proposta'
+import { STATUS_COLORS, STATUS_LABEL } from '@/lib/proposta-utils'
 
-export function PropostaStatusBadge({ status }: { status: PropostaStatus }) {
-  const map = {
-    rascunho: 'gray',
-    enviada: 'blue',
-    aprovada: 'green',
-    rejeitada: 'red'
-  }
+interface Props {
+  status: PropostaStatus
+  size?: 'sm' | 'md'
+}
+
+export function PropostaStatusBadge({ status, size = 'sm' }: Props) {
+  const c = STATUS_COLORS[status]
+  const padding = size === 'md' ? 'px-3 py-1.5 text-xs' : 'px-2.5 py-1 text-[11px]'
 
   return (
     <span
-      style={{
-        background: map[status],
-        padding: '4px 8px',
-        borderRadius: 6,
-        fontSize: 12
-      }}
+      className={`
+        inline-flex items-center gap-1.5 rounded-full font-medium border
+        ${padding} ${c.bg} ${c.text} ${c.border}
+      `}
     >
-      {status}
+      <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+      {STATUS_LABEL[status]}
     </span>
   )
 }

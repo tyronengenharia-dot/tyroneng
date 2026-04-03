@@ -1,101 +1,216 @@
+import { supabase } from '@/lib/supabaseClient'
 import { Licitacao, LicitacaoFormData, LicitacaoStatus, ChecklistItem } from '@/types/licitacao'
 
-let licitacoes: Licitacao[] = [
-  {
-    id: 'demo-1',
-    titulo: 'Reforma do Centro Cultural Municipal',
-    orgao: 'Secretaria Municipal de Cultura — RJ',
-    local: 'Sala de Licitações — Ed. Sede, Centro',
-    valorEstimado: 2850000,
-    dataEntrega: '2025-08-10',
-    status: 'preparacao',
-    modalidade: 'Concorrência',
-    processo: '012/2025',
-    lote: 'Lote 1',
-    plataforma: '',
-    dataDisputa: '2025-08-15',
-    horaDisputa: '09:00',
-    responsavel: 'Ana Ferreira',
-    observacoes: 'Prioridade máxima. Verificar exigência de visita técnica obrigatória.',
-    checklist: [
-      { id: 'c1', nome: 'Certidão negativa de débitos federais', categoria: 'Jurídico', status: 'concluido' },
-      { id: 'c2', nome: 'Balanço patrimonial último exercício', categoria: 'Financeiro', status: 'concluido' },
-      { id: 'c3', nome: 'Atestado de capacidade técnica', categoria: 'Técnico', status: 'andamento' },
-      { id: 'c4', nome: 'Proposta técnica detalhada', categoria: 'Proposta', status: 'andamento' },
-      { id: 'c5', nome: 'ART do responsável técnico', categoria: 'Técnico', status: 'pendente' },
-      { id: 'c6', nome: 'Certidão negativa FGTS', categoria: 'Jurídico', status: 'pendente' },
-      { id: 'c7', nome: 'Planilha orçamentária detalhada', categoria: 'Financeiro', status: 'pendente' },
-    ],
-  },
-  {
-    id: 'demo-2',
-    titulo: 'Pavimentação Av. Brasil — Trecho 4',
-    orgao: 'DER-RJ',
-    local: 'ComprasNet',
-    valorEstimado: 7200000,
-    dataEntrega: '2025-08-28',
-    status: 'analise',
-    modalidade: 'Pregão Eletrônico',
-    processo: '034/2025',
-    lote: 'Lote 4',
-    plataforma: 'ComprasNet',
-    dataDisputa: '2025-09-03',
-    horaDisputa: '10:00',
-    responsavel: 'Carlos Melo',
-    observacoes: '',
-    checklist: [
-      { id: 'd1', nome: 'Ato constitutivo da empresa', categoria: 'Jurídico', status: 'concluido' },
-      { id: 'd2', nome: 'Capacidade financeira mínima', categoria: 'Financeiro', status: 'pendente' },
-    ],
-  },
-]
 
-export function getLicitacoes(): Licitacao[] {
-  return licitacoes
-}
+// ─── helpers banco → app ──────────────────────────────────────────────────────
 
-export function getLicitacaoById(id: string): Licitacao | undefined {
-  return licitacoes.find(l => l.id === id)
-}
-
-export function createLicitacao(data: LicitacaoFormData): Licitacao {
-  const nova: Licitacao = {
-    ...data,
-    id: crypto.randomUUID(),
-    status: 'analise',
-    checklist: [],
-  }
-  licitacoes.push(nova)
-  return nova
-}
-
-export function updateLicitacao(id: string, data: LicitacaoFormData): void {
-  const idx = licitacoes.findIndex(l => l.id === id)
-  if (idx !== -1) {
-    licitacoes[idx] = { ...licitacoes[idx], ...data }
+function rowToLicitacao(row: any, checklist: ChecklistItem[] = []): Licitacao {
+  return {
+    id:            row.id,
+    titulo:        row.titulo,
+    orgao:         row.orgao,
+    local:         row.local,
+    valorEstimado: Number(row.valor_estimado),
+    dataEntrega:   row.data_entrega  ?? '',
+    dataDisputa:   row.data_disputa  ?? '',
+    horaDisputa:   row.hora_disputa  ?? '',
+    status:        row.status as LicitacaoStatus,
+    modalidade:    row.modalidade,
+    processo:      row.processo,
+    lote:          row.lote,
+    plataforma:    row.plataforma,
+    responsavel:   row.responsavel,
+    observacoes:   row.observacoes,
+    checklist,
   }
 }
 
-export function updateStatus(id: string, status: LicitacaoStatus): void {
-  const lic = licitacoes.find(l => l.id === id)
-  if (lic) lic.status = status
+function rowToChecklistItem(row: any): ChecklistItem {
+  return {
+    id:          row.id,
+    nome:        row.nome,
+    categoria:   row.categoria,
+    status:      row.status,
+    responsavel: row.responsavel ?? '',
+  }
 }
 
-export function updateChecklist(licitacaoId: string, checklist: ChecklistItem[]): void {
-  const lic = licitacoes.find(l => l.id === licitacaoId)
-  if (lic) lic.checklist = checklist
+function formToRow(data: LicitacaoFormData) {
+  return {
+    titulo:         data.titulo,
+    orgao:          data.orgao,
+    local:          data.local,
+    valor_estimado: data.valorEstimado,
+    data_entrega:   data.dataEntrega  || null,
+    data_disputa:   data.dataDisputa  || null,
+    hora_disputa:   data.horaDisputa  || '',
+    modalidade:     data.modalidade,
+    processo:       data.processo,
+    lote:           data.lote,
+    plataforma:     data.plataforma,
+    responsavel:    data.responsavel,
+    observacoes:    data.observacoes,
+  }
 }
 
-export function addChecklistItem(licitacaoId: string, item: Omit<ChecklistItem, 'id'>): void {
-  const lic = licitacoes.find(l => l.id === licitacaoId)
-  if (lic) lic.checklist.push({ ...item, id: crypto.randomUUID() })
+// ─── licitações ───────────────────────────────────────────────────────────────
+
+export async function getLicitacoes(): Promise<Licitacao[]> {
+  const { data: lics, error } = await supabase
+    .from('licitacoes')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  if (!lics?.length) return []
+
+  const ids = lics.map(l => l.id)
+
+  const { data: clRows, error: clErr } = await supabase
+    .from('licitacao_checklist')
+    .select('*')
+    .in('licitacao_id', ids)
+    .order('ordem', { ascending: true })
+
+  if (clErr) throw clErr
+
+  return lics.map(row => {
+    const checklist = (clRows ?? [])
+      .filter(c => c.licitacao_id === row.id)
+      .map(rowToChecklistItem)
+    return rowToLicitacao(row, checklist)
+  })
 }
 
-export function deleteChecklistItem(licitacaoId: string, itemId: string): void {
-  const lic = licitacoes.find(l => l.id === licitacaoId)
-  if (lic) lic.checklist = lic.checklist.filter(i => i.id !== itemId)
+export async function getLicitacaoById(id: string): Promise<Licitacao | null> {
+  const { data: row, error } = await supabase
+    .from('licitacoes')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) return null
+
+  const { data: clRows } = await supabase
+    .from('licitacao_checklist')
+    .select('*')
+    .eq('licitacao_id', id)
+    .order('ordem', { ascending: true })
+
+  const checklist = (clRows ?? []).map(rowToChecklistItem)
+  return rowToLicitacao(row, checklist)
 }
 
-export function deleteLicitacao(id: string): void {
-  licitacoes = licitacoes.filter(l => l.id !== id)
+export async function createLicitacao(
+  data: LicitacaoFormData,
+  userId: string
+): Promise<Licitacao> {
+  const { data: row, error } = await supabase
+    .from('licitacoes')
+    .insert({ ...formToRow(data), user_id: userId, status: 'analise' })
+    .select()
+    .single()
+
+  if (error) throw error
+  return rowToLicitacao(row)
+}
+
+export async function updateLicitacao(id: string, data: LicitacaoFormData): Promise<void> {
+  const { error } = await supabase
+    .from('licitacoes')
+    .update(formToRow(data))
+    .eq('id', id)
+
+  if (error) throw error
+}
+
+export async function updateStatus(id: string, status: LicitacaoStatus): Promise<void> {
+  const { error } = await supabase
+    .from('licitacoes')
+    .update({ status })
+    .eq('id', id)
+
+  if (error) throw error
+}
+
+export async function deleteLicitacao(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('licitacoes')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+}
+
+// ─── checklist ────────────────────────────────────────────────────────────────
+
+export async function addChecklistItem(
+  licitacaoId: string,
+  item: Omit<ChecklistItem, 'id'>
+): Promise<ChecklistItem> {
+  const { data: row, error } = await supabase
+    .from('licitacao_checklist')
+    .insert({
+      licitacao_id: licitacaoId,
+      nome:         item.nome,
+      categoria:    item.categoria,
+      status:       item.status,
+      responsavel:  item.responsavel ?? '',
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return rowToChecklistItem(row)
+}
+
+export async function updateChecklistItem(
+  itemId: string,
+  fields: Partial<Pick<ChecklistItem, 'status' | 'nome' | 'categoria' | 'responsavel'>>
+): Promise<void> {
+  const { error } = await supabase
+    .from('licitacao_checklist')
+    .update(fields)
+    .eq('id', itemId)
+
+  if (error) throw error
+}
+
+export async function deleteChecklistItem(itemId: string): Promise<void> {
+  const { error } = await supabase
+    .from('licitacao_checklist')
+    .delete()
+    .eq('id', itemId)
+
+  if (error) throw error
+}
+
+// Substitui todos os itens de uma vez (útil se quiser sync completo)
+export async function replaceChecklist(
+  licitacaoId: string,
+  items: ChecklistItem[]
+): Promise<void> {
+  const { error: delErr } = await supabase
+    .from('licitacao_checklist')
+    .delete()
+    .eq('licitacao_id', licitacaoId)
+
+  if (delErr) throw delErr
+  if (!items.length) return
+
+  const rows = items.map((item, i) => ({
+    id:           item.id,
+    licitacao_id: licitacaoId,
+    nome:         item.nome,
+    categoria:    item.categoria,
+    status:       item.status,
+    responsavel:  item.responsavel ?? '',
+    ordem:        i,
+  }))
+
+  const { error } = await supabase
+    .from('licitacao_checklist')
+    .upsert(rows)
+
+  if (error) throw error
 }
