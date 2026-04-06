@@ -4,6 +4,9 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import Image from "next/image";
+
+// Menu
 
 const menu = [
   { name: 'Início',              href: '/',                icon: '⌂' },
@@ -38,7 +41,14 @@ export default function Sidebar() {
       <div>
         <div className={`flex items-center p-4 border-b border-white/10 ${collapsed ? 'justify-center' : 'justify-between'}`}>
           {!collapsed && (
-            <h1 className="text-base font-bold text-white truncate">Tyron Engenharia</h1>
+            <Image
+              src="/logotyronsemfundo.png"
+              alt="Tyron Engenharia"
+              width={140}
+              height={40}
+              className="object-contain"
+              priority
+            />
           )}
           <button
             onClick={() => setCollapsed(p => !p)}
