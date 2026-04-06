@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal } from 'react'
 import { Compromisso } from '@/types/agenda'
 import { AgendaDayModal } from './AgendaDayModal'
 
@@ -43,7 +43,7 @@ export function AgendaCalendar({ data, onUpdate, userId }: any) {
 
   function getEventos(dia: number) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
-    return data.filter(e => e.date === dateStr)
+    return data.filter((e: { date: string }) => e.date === dateStr)
   }
 
   function prevMonth() {
@@ -221,7 +221,7 @@ useEffect(() => {
               </div>
 
               <div className="space-y-1">
-                {eventos.slice(0, 2).map(e => (
+                {eventos.slice(0, 2).map((e: { id: Key | null | undefined; status: string; title: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined }) => (
                   <div
                     key={e.id}
                     className={`text-[10px] px-1 py-[2px] rounded ${
