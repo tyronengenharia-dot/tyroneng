@@ -1,63 +1,84 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation' // 👈 IMPORTANTE
-
+import { useParams, useRouter } from 'next/navigation'
 import { getObraById } from '@/services/obraService'
+import { Obra } from '@/types'
 
 import { ObraHeader } from '@/components/obras/ObraHeader'
-import { ObraTabs } from '@/components/obras/ObraTabs'
-
-import { OverviewTab } from '@/components/obras/tabs/OverviewTab'
-import { PlanejamentoTab } from '@/components/obras/tabs/PlanejamentoTab'
-import { EquipeTab } from '@/components/obras/tabs/EquipeTab'
-import { ObraFinanceiroTab } from '@/components/obras/financeiro/ObraFinanceiroTab'
-import { MedicaoTab } from '@/components/obras/medicao/MedicaoTab'
-import { DashboardTab } from '@/components/obras/dashboard/DashboardTab'
-import { VendaTab } from '@/components/obras/tabs/VendaTab'
-import { CustoPlanTab, CustosTab } from '@/components/obras/tabs/CustosPlanTab'
-import { CustoRealTab } from '@/components/obras/tabs/CustoRealTab'
+import { ObraTabs, ObraTab } from '@/components/obras/ObraTabs'
+import { DashboardTab }     from '@/components/obras/dashboard/DashboardTab'
+import { FinanceiroTab }    from '@/components/obras/financeiro/FinanceiroTab'
+import { PlanejamentoTab }  from '@/components/obras/planejamento/PlanejamentoTab'
+import { MedicoesTab }      from '@/components/obras/medicao/MedicoesTab'
+import { VendaTab, CustoPlanejadoTab, CustoRealTab } from '@/components/obras/planilhas/PlanilhaWrappers'
+import { EquipeTab }        from '@/components/obras/equipe/EquipeTab'
+import { DocumentosTab }    from '@/components/obras/documentos/DocumentosTab'
+import { DiarioTab }        from '@/components/obras/diario/DiarioTab'
+import { RiscosTab }        from '@/components/obras/riscos/RiscosTab'
+import { LoadingSpinner }   from '@/components/ui'
 
 export default function ObraPage() {
-  const params = useParams() // 👈 NOVO JEITO
-  const id = params?.id as string
+  const params   = useParams()
+  const router   = useRouter()
+  const id       = params?.id as string
+  const [obra, setObra]   = useState<Obra | null>(null)
+  const [tab, setTab]     = useState<ObraTab>('dashboard')
+  const [loading, setLoading] = useState(true)
 
-  const [obra, setObra] = useState<any>(null)
-  const [tab, setTab] = useState('dashboard')
+  useEffect(() => {
+    // Se por algum motivo cair aqui com id='nova', redireciona
+    if (id === 'nova') {
+      router.replace('/obras/nova')
+      return
+    }
+    if (!id) return
+    getObraById(id).then(data => {
+      setObra(data)
+      setLoading(false)
+    })
+  }, [id, router])
 
-useEffect(() => {
-  if (!id) return
-
-  async function fetch() {
-    const data = await getObraById(id)
-    setObra(data)
+  if (loading || id === 'nova') {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner />
+      </div>
+    )
   }
 
-  fetch()
-}, [id])
-
   if (!obra) {
-    return <div className="text-gray-400">Carregando...</div>
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <p className="text-white/40 text-sm">Obra não encontrada.</p>
+        <a
+          href="/obras"
+          className="px-4 py-2 text-sm font-medium bg-white/5 border border-white/10 text-white/50 rounded-xl hover:text-white hover:bg-white/10 transition-colors"
+        >
+          ← Voltar para obras
+        </a>
+      </div>
+    )
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto px-6 py-6 space-y-0">
       <ObraHeader obra={obra} />
-
       <ObraTabs tab={tab} setTab={setTab} />
 
-      {tab === 'dashboard' && <DashboardTab obra_id={id} />}
-      {tab === 'financeiro' && <ObraFinanceiroTab obra_id={id} />}
-      {tab === 'Planejamento' && <PlanejamentoTab obra_id={id} />}
-      {tab === 'equipe' && <EquipeTab />}
-      {tab === 'medicoes' && <MedicaoTab obra_id={id} />}
-      {tab === 'contratos' && <div>Contratos</div>}
-      {tab === 'documentos' && <div>Documentos</div>}
-      {tab === 'Plan. Venda' && <VendaTab obra_id={id} />}
-      {tab === 'Custo Planejado' && <CustoPlanTab obra_id={id} />}
-      {tab === 'Custo Real' && <CustoRealTab obra_id={id} />}
-      
-
+      <div>
+        {tab === 'dashboard'       && <DashboardTab    obra_id={id} budget={obra.budget} />}
+        {tab === 'financeiro'      && <FinanceiroTab    obra_id={id} />}
+        {tab === 'planejamento'    && <PlanejamentoTab  obra_id={id} />}
+        {tab === 'medicoes'        && <MedicoesTab      obra_id={id} budget={obra.budget} />}
+        {tab === 'venda'           && <VendaTab         obra_id={id} />}
+        {tab === 'custo-planejado' && <CustoPlanejadoTab obra_id={id} />}
+        {tab === 'custo-real'      && <CustoRealTab     obra_id={id} />}
+        {tab === 'equipe'          && <EquipeTab         obra_id={id} />}
+        {tab === 'documentos'      && <DocumentosTab     obra_id={id} />}
+        {tab === 'diario'          && <DiarioTab         obra_id={id} obra_name={obra.name} />}
+        {tab === 'riscos'          && <RiscosTab         obra_id={id} />}
+      </div>
     </div>
   )
 }
