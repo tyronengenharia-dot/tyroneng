@@ -24,6 +24,8 @@ export async function POST(req: NextRequest) {
       id:                 body.id        || crypto.randomUUID(),
       numero:             body.numero    || '',
       cliente:            body.cliente   || '',
+      obra:               body.obra      || '',
+      descricao:          body.descricao || '',
       tituloCapa:         body.tituloCapa|| '',
       dataEmissao:        body.dataEmissao || new Intl.DateTimeFormat('pt-BR', {
                             day: '2-digit', month: 'long', year: 'numeric',
