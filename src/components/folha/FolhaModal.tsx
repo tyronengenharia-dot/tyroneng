@@ -7,7 +7,7 @@ export function EmployeeCostsModal({ employee, onClose, onSaved }: any) {
   const [tab, setTab] = useState('encargos')
   const [saving, setSaving] = useState(false)
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<Record<string, number>>({
     inss: 20,
     fgts: 8,
     rat: 1,
@@ -110,16 +110,16 @@ export function EmployeeCostsModal({ employee, onClose, onSaved }: any) {
         {tab === 'encargos' && (
           <>
             <input className="input" placeholder="INSS (%)"
-              onChange={e => setForm({...form, inss: e.target.value})} />
+              onChange={e => setForm({...form, inss: Number(e.target.value)})} />
 
             <input className="input" placeholder="FGTS (%)"
-              onChange={e => setForm({...form, fgts: e.target.value})} />
+              onChange={e => setForm({...form, fgts: Number(e.target.value)})} />
 
             <input className="input" placeholder="RAT (%)"
-              onChange={e => setForm({...form, rat: e.target.value})} />
+              onChange={e => setForm({...form, rat: Number(e.target.value)})} />
 
             <input className="input" placeholder="Terceiros (%)"
-              onChange={e => setForm({...form, terceiros: e.target.value})} />
+              onChange={e => setForm({...form, terceiros: Number(e.target.value)})} />
           </>
         )}
 
@@ -127,10 +127,10 @@ export function EmployeeCostsModal({ employee, onClose, onSaved }: any) {
         {tab === 'provisoes' && (
           <>
             <input className="input" placeholder="Férias (%)"
-              onChange={e => setForm({...form, ferias: e.target.value})} />
+              onChange={e => setForm({...form, ferias: Number(e.target.value)})} />
 
             <input className="input" placeholder="13º (%)"
-              onChange={e => setForm({...form, decimo: e.target.value})} />
+              onChange={e => setForm({...form, decimo: Number(e.target.value)})} />
           </>
         )}
 
@@ -138,13 +138,13 @@ export function EmployeeCostsModal({ employee, onClose, onSaved }: any) {
         {tab === 'beneficios' && (
           <>
             <input className="input" placeholder="Vale transporte (R$)"
-              onChange={e => setForm({...form, vt: e.target.value})} />
+              onChange={e => setForm({...form, vt: Number(e.target.value)})} />
 
             <input className="input" placeholder="Vale refeição (R$)"
-              onChange={e => setForm({...form, vr: e.target.value})} />
+              onChange={e => setForm({...form, vr: Number(e.target.value)})} />
 
             <input className="input" placeholder="Plano de saúde (R$)"
-              onChange={e => setForm({...form, plano_saude: e.target.value})} />
+              onChange={e => setForm({...form, plano_saude: Number(e.target.value)})} />
           </>
         )}
 
@@ -152,7 +152,7 @@ export function EmployeeCostsModal({ employee, onClose, onSaved }: any) {
         {tab === 'outros' && (
           <>
             <input className="input" placeholder="Outros custos"
-              onChange={e => setForm({...form, outros: e.target.value})} />
+              onChange={e => setForm({...form, outros: Number(e.target.value)})} />
           </>
         )}
 
