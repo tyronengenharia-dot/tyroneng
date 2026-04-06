@@ -101,14 +101,14 @@ export function FinanceModal({ onClose, initialData, onSuccess }: Props) {
     try {
       const payload = {
         description: description.trim(), type, value: netValue, status, date: issueDate,
-        category, cost_center: costCenter || null, account,
+        category, cost_center: costCenter || undefined, account,
         discount: parseFloat(discount || '0'),
-        due_date: dueDate || null, payment_date: paymentDate || null,
-        doc_type: docType, doc_number: docNumber || null,
-        supplier_doc: supplierDoc || null, supplier_name: supplierName || null,
+        due_date: dueDate || undefined, payment_date: paymentDate || undefined,
+        doc_type: docType, doc_number: docNumber || undefined,
+        supplier_doc: supplierDoc || undefined, supplier_name: supplierName || undefined,
         payment_method: paymentMethod,
-        installment: isInstallment, installment_qty: isInstallment ? parseInt(installmentQty) : null,
-        notes: notes || null, tags: selectedTags, receipt_url: receiptUrl || null,
+        installment: isInstallment, installment_qty: isInstallment ? parseInt(installmentQty) : undefined,
+        notes: notes || undefined, tags: selectedTags, receipt_url: receiptUrl || undefined,
       }
       if (initialData) {
         await updateFinancialRecord(initialData.id, payload)
@@ -275,7 +275,7 @@ export function FinanceModal({ onClose, initialData, onSuccess }: Props) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={lc}>Status <span className="text-red-400">*</span></label>
-                  <select className={ic} value={status} onChange={e => setStatus(e.target.value)}>
+                  <select className={ic} value={status} onChange={e => setStatus(e.target.value as typeof STATUS_OPTS[number])}>
                     {STATUS_OPTS.map(s => <option key={s} value={s} className="bg-[#111]">{STATUS_LABELS[s]}</option>)}
                   </select>
                 </div>
