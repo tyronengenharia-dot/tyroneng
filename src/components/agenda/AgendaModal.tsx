@@ -1047,7 +1047,7 @@ export function AgendaModal({
               <Field label="Data">
                 <DatePicker
                   selected={form.data ? new Date(`${form.data}T12:00`) : null}
-                  onChange={(d: Date) => set('data', d.toISOString().split('T')[0])}
+                  onChange={(d: Date | null) => d && set('data', d.toISOString().split('T')[0])}
                   dateFormat="dd/MM/yyyy"
                   placeholderText="dd/mm/aaaa"
                   className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-white/30"
