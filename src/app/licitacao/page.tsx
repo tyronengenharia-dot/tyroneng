@@ -62,7 +62,7 @@ export default function LicitacoesPage() {
     setSaving(true)
     try {
       if (editTarget) {
-        await updateLicitacao(editTarget.id, data)
+        await updateLicitacao(editTarget.id, data, editTarget.checklist)
         setLicitacoes(prev =>
           prev.map(l => l.id === editTarget.id ? { ...l, ...data } : l)
         )
@@ -86,7 +86,11 @@ export default function LicitacoesPage() {
 
   async function handleAddItem(nome: string, categoria: ChecklistCategoria) {
     if (!selectedId) return
-    const item = await addChecklistItem(selectedId, { nome, categoria, status: 'pendente' })
+    const item = await addChecklistItem(selectedId, {
+      nome, categoria, status: 'pendente',
+      descricao: undefined,
+      observacao: undefined
+    })
     patchChecklist(items => [...items, item])
   }
 
