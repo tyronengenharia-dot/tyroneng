@@ -79,12 +79,12 @@ export default function NotasPage() {
       {openModal && (
         <NotaModal
           onClose={() => setOpenModal(false)}
-          onSave={(item: NotaFiscal) =>
-            setData(prev => [
-              ...prev,
-              { ...item, id: Date.now().toString() },
-            ])
-          }
+        onSave={(item: Omit<NotaFiscal, 'id'>) =>
+          setData(prev => [
+            ...prev,
+            { ...item, id: Date.now().toString() },
+          ])
+        }
         />
       )}
     </div>
