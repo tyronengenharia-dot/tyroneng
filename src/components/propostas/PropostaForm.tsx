@@ -95,6 +95,8 @@ export function PropostaForm({ onSubmit, initialData }: Props) {
       id:              form.id || crypto.randomUUID(),
       numero:          form.numero || `${346000 + Math.floor(Math.random() * 999)}`,
       cliente:         form.cliente || '',
+      obra:            form.obra || '',
+      descricao:       form.descricao || '',
       tituloCapa:      form.tituloCapa || (form.cliente || '').toUpperCase(),
       dataEmissao:     form.dataEmissao || '',
       objetivo:        form.objetivo || '',
