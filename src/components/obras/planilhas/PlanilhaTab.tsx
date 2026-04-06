@@ -44,12 +44,14 @@ type Props = {
 function EditableCell({
   value,
   onChange,
+  onBlur,
   type = 'text',
   className = '',
   placeholder = '',
 }: {
   value: string | number
   onChange: (v: string) => void
+  onBlur?: () => void
   type?: 'text' | 'number'
   className?: string
   placeholder?: string
@@ -59,6 +61,7 @@ function EditableCell({
       type={type}
       value={value}
       onChange={e => onChange(e.target.value)}
+      onBlur={onBlur}
       placeholder={placeholder}
       className={cn(
         'bg-transparent w-full text-sm text-white/70 placeholder:text-white/20',
