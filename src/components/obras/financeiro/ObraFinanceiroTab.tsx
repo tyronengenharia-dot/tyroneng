@@ -86,12 +86,13 @@ export function ObraFinanceiroTab({ obra_id }: any) {
       {openModal && (
         <FinanceiroModal
           onClose={() => setOpenModal(false)}
-          onSave={(item: any) =>
-            setData(prev => [
-              ...prev,
-              { ...item, id: Date.now().toString(), obra_id },
-            ])
-          }
+          initialData={null}
+          onSuccess={() => {
+            setOpenModal(false)
+            getFinanceiroByObra(obra_id).then(result => {
+              setData(result)
+            })
+          }}
         />
       )}
     </div>
