@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabaseClient'
-import { Licitacao, LicitacaoFormData, LicitacaoStatus, ChecklistItem } from '@/types/licitacao'
+import { Licitacao, LicitacaoFormData, LicitacaoStatus, ChecklistItem, ChecklistStatus } from '@/types/licitacao'
 
 
 // ─── helpers banco → app ──────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ export async function createLicitacao(
   return rowToLicitacao(row)
 }
 
-export async function updateLicitacao(id: string, data: LicitacaoFormData): Promise<void> {
+export async function updateLicitacao(id: string, data: LicitacaoFormData, checklist: { id: string; descricao: any; status: ChecklistStatus; observacao: any }[]): Promise<void> {
   const { error } = await supabase
     .from('licitacoes')
     .update(formToRow(data))

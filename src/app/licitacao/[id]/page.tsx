@@ -1,20 +1,42 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import { useState } from 'react'
-import { getLicitacaoById, updateChecklist } from '@/services/licitacaoService'
-import { ChecklistTable } from '@/components/licitacoes/CheckListTable'
+import { useState, useEffect } from 'react'
+import { getLicitacaoById, updateLicitacao } from '@/services/licitacaoService'
+import { ChecklistTable } from '@/components/licitacoes/ChecklistTable'
+import { Licitacao, ChecklistItem } from '@/types/licitacao'
 
 export default function LicitacaoDetalhePage() {
   const { id } = useParams()
-  const lic = getLicitacaoById(id as string)
+  const [lic, setLic] = useState<Licitacao | null>(null)
+  const [items, setItems] = useState<ChecklistItem[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const [items, setItems] = useState(lic?.checklist || [])
+  useEffect(() => {
+    async function load() {
+      const data = await getLicitacaoById(id as string)
+      if (data) {
+        setLic(data)
+        setItems(data.checklist)
+      }
+      setLoading(false)
+    }
+    load()
+  }, [id])
 
-  function save() {
-    updateChecklist(id as string, items)
+  async function save() {
+    if (!lic) return
+    const { id: _, checklist: __, ...licData } = lic;
+    const checklist = items.map(item => ({
+      id: item.id,
+      descricao: item.descricao,
+      status: item.status,
+      observacao: item.observacao
+    }));
+    await updateLicitacao(id as string, { ...licData }, checklist)
   }
 
+  if (loading) return <div className="p-6 text-white">Carregando...</div>
   if (!lic) return <div>Não encontrada</div>
 
   return (
