@@ -1,12 +1,13 @@
 import { PropostaStatsBar } from '@/components/propostas/PropostaStatsBar'
 import { PropostaTable }   from '@/components/propostas/PropostaTable'
 import { listarPropostas } from '@/services/propostaService'
+import { Proposta } from '@/types/proposta'
 
 // Server Component — busca direto do Supabase, sem useEffect
 export const dynamic = 'force-dynamic' // nunca cachear — sempre dados frescos
 
 export default async function PropostasPage() {
-  let propostas = []
+  let propostas: Proposta[] = []
   let erro: string | null = null
 
   try {
