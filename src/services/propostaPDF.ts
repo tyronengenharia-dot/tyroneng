@@ -24,14 +24,14 @@ function propostaToPayload(p: Proposta): Record<string, unknown> {
   return {
     numero: p.numero,
     cliente: p.cliente,
-    obra: p.obra,
-    titulo_capa: p.obra.toUpperCase(),
-    descricao: p.descricao,
-    objetivo: p.descricao,
+    obra: String(p.obra ?? ''),
+    titulo_capa: String(p.obra ?? '').toUpperCase(),
+    descricao: String(p.descricao ?? ''),
+    objetivo: String(p.descricao ?? ''),
     etapas: p.etapas ?? [],
     entregaveis: [
       'PROJETO ESTRUTURAL',
-      `SERVIÇO: ${p.obra.toUpperCase()}`,
+      `SERVIÇO: ${String(p.obra ?? '').toUpperCase()}`,
       'ART - CREA/RJ',
     ],
     valor: p.valor,
@@ -42,7 +42,7 @@ function propostaToPayload(p: Proposta): Record<string, unknown> {
     responsavel: p.responsavel,
     crea: p.crea ?? 'CREA/RJ 2019103029',
     condicoesPagamento: p.condicoesPagamento ?? '',
-    descricao_nf: p.descricao?.toUpperCase() ?? '',
+    descricao_nf: String(p.descricao ?? '').toUpperCase(),
     data_emissao: new Intl.DateTimeFormat('pt-BR', {
       day: '2-digit',
       month: 'long',
