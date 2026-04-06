@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import { getFinanceiroByObra } from '@/services/obraFinanceiroService'
 
-import { FinanceiroTable } from './FinanceiroTable'
+import { FinanceTable as FinanceiroTable } from './FinanceiroTable'
 import { FinanceiroFilters } from './FinanceiroFilters'
-import { FinanceiroModal } from './FinanceiroModal'
+import { FinanceModal as FinanceiroModal } from './FinanceiroModal'
+import { FinancialRecord } from '@/types/financial'
 
 export function ObraFinanceiroTab({ obra_id }: any) {
   const [data, setData] = useState<any[]>([])
@@ -76,7 +77,11 @@ export function ObraFinanceiroTab({ obra_id }: any) {
         setStatus={setStatus}
       />
 
-      <FinanceiroTable data={filtered} />
+      <FinanceiroTable data={filtered} onEdit={function (item: FinancialRecord): void {
+        throw new Error('Function not implemented.')
+      } } onDelete={function (id: string): void {
+        throw new Error('Function not implemented.')
+      } } />
 
       {openModal && (
         <FinanceiroModal

@@ -26,7 +26,7 @@ export default async function AcervoTecnicoPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white tracking-tight">
-                Acervo Técnico
+                DOCUMENTOS GERAIS
               </h1>
               <p className="text-sm text-zinc-500">
                 Gestão de documentos da empresa e dos profissionais
