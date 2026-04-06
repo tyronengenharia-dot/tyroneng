@@ -9,8 +9,8 @@ export type PropostaStatus = 'rascunho' | 'enviada' | 'aprovada' | 'rejeitada'
 export type EscopaMaterial = 'mao_de_obra' | 'mao_de_obra_e_materiais'
 
 export interface Proposta {
-  obra: unknown
-  descricao: unknown
+  obra: string
+  descricao: string
   id: string
 
   // ── CAPA ──────────────────────────────────────────────────────

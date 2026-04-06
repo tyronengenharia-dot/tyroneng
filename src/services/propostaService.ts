@@ -8,6 +8,8 @@ import { Proposta, PropostaStatus } from '@/types/proposta'
 // ── Row do banco (snake_case) ─────────────────────────────────────────────────
 interface PropostaRow {
   id:                  string
+  obra:                string
+  descricao:           string
   numero:              string
   cliente:             string
   titulo_capa:         string
@@ -34,6 +36,8 @@ interface PropostaRow {
 function rowToProposta(row: PropostaRow): Proposta {
   return {
     id:                 row.id,
+    obra:               row.obra,
+    descricao:          row.descricao,
     numero:             row.numero,
     cliente:            row.cliente,
     tituloCapa:         row.titulo_capa,
@@ -58,6 +62,8 @@ function rowToProposta(row: PropostaRow): Proposta {
 function propostaToInsert(p: Proposta): Omit<PropostaRow, 'updated_at'> {
   return {
     id:                  p.id,
+    obra:                p.obra,
+    descricao:           p.descricao,
     numero:              p.numero,
     cliente:             p.cliente,
     titulo_capa:         p.tituloCapa,
@@ -128,6 +134,8 @@ export async function atualizarProposta(
 ): Promise<Proposta> {
   // Converte apenas os campos que chegaram
   const row: Partial<PropostaRow> = {}
+  if (updates.obra               !== undefined) row.obra                = updates.obra
+  if (updates.descricao          !== undefined) row.descricao           = updates.descricao
   if (updates.numero             !== undefined) row.numero              = updates.numero
   if (updates.cliente            !== undefined) row.cliente             = updates.cliente
   if (updates.tituloCapa         !== undefined) row.titulo_capa         = updates.tituloCapa
