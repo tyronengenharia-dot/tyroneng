@@ -27,12 +27,14 @@ function rowToLicitacao(row: any, checklist: ChecklistItem[] = []): Licitacao {
 
 function rowToChecklistItem(row: any): ChecklistItem {
   return {
-    id:          row.id,
-    nome:        row.nome,
-    categoria:   row.categoria,
-    status:      row.status,
-    responsavel: row.responsavel ?? '',
-  }
+  id: row.id,
+  nome: row.nome,
+  categoria: row.categoria,
+  descricao: row.descricao ?? '',
+  observacao: row.observacao ?? '',
+  status: row.status,
+  responsavel: row.responsavel ?? '',
+}
 }
 
 function formToRow(data: LicitacaoFormData) {
