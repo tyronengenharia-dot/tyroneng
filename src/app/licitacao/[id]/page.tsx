@@ -43,6 +43,7 @@ export default function LicitacaoDetalhePage() {
       status: 'pendente',
       observacao: '',
       categoria,
+      nome: ''
     }
     const updated = [...items, newItem]
     setItems(updated)
