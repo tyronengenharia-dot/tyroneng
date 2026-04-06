@@ -66,8 +66,9 @@ export default function NotasPage() {
         type={type}
         setType={setType}
         status={status}
-        setStatus={setStatus}
-      />
+        setStatus={setStatus} search={''} setSearch={function (v: string): void {
+          throw new Error('Function not implemented.')
+        } }      />
 
       {loading ? (
         <div className="text-gray-400">Carregando...</div>
