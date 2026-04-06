@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getMedicoes } from '@/services/medicaoService'
+import { getMedicoesByObra } from '@/services/medicaoService'
 
 import { MedicaoTable } from './MedicaoTable'
 import { MedicaoModal } from './MedicaoModal'
@@ -13,7 +13,7 @@ export function MedicaoTab({ obra_id }: any) {
 
   useEffect(() => {
     async function fetch() {
-      const result = await getMedicoes(obra_id)
+      const result = await getMedicoesByObra(obra_id)
       setData(result)
     }
 
