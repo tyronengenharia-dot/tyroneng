@@ -1,3 +1,4 @@
+import { supabase } from '@/lib/supabaseClient'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -17,6 +18,22 @@ export async function middleware(request: NextRequest) {
   ) {
     return NextResponse.next()
   }
+
+  const ROLE_ROUTES: Record<string, string[]> = {
+  '/acervotecnico':      ['admin', 'gestor', 'funcionario'],
+  '/agenda':      ['admin'],
+  '/api':      ['admin'],
+  '/compras':      ['admin', 'funcionario'],
+  '/contratos':      ['admin'],
+  '/estoque':      ['admin', 'funcionario'],
+  '/financeiro':      ['admin'],
+  '/folha':      ['admin'],
+  '/gestao-de-pessoas': ['admin'],
+  '/licitacao':      ['admin', 'gestor'],
+  '/notas-fiscais':      ['admin', 'funcionario'],
+  '/obras':    ['admin', 'funcionario'],
+  '/propostas':      ['admin'],
+}
 
   // Cria resposta mutável para que o Supabase possa atualizar os cookies de sessão
   const response = NextResponse.next({
@@ -51,6 +68,23 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('next', pathname) // preserva destino original
     return NextResponse.redirect(loginUrl)
+  }
+
+  // depois de confirmar que o user existe...
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const role = (profile as { role: string } | null)?.role ?? 'viewer'
+
+  const rotaRestrita = Object.entries(ROLE_ROUTES).find(([rota]) =>
+    pathname.startsWith(rota)
+  )
+
+  if (rotaRestrita && !rotaRestrita[1].includes(role)) {
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   return response
