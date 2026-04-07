@@ -161,7 +161,7 @@ async function fetchDashboard(): Promise<DashboardData> {
     supabase
       .from('obras')
       .select('id, nome, progresso, status, cidade')
-      .eq('status', 'ativo')
+      .eq('status', 'andamento')
       .order('progresso', { ascending: false })
       .limit(6),
 
@@ -202,7 +202,7 @@ async function fetchDashboard(): Promise<DashboardData> {
 
     // Contratos ativos (só contagem)
     supabase
-      .from('propostas')
+      .from('contratos')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'ativo'),
   ])
