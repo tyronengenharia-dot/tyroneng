@@ -19,6 +19,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // Para onde cada role é redirecionado ao acessar '/'
+const HOME_BY_ROLE = {
+  admin:  '/',       // fica no dashboard
+  gestor: '/acervotecnico',  // vai direto para documentos gerais
+  funcionario: '/compras',  // vai direto para compras
+}
+
+// Quais roles podem acessar cada rota
   const ROLE_ROUTES: Record<string, string[]> = {
   '/acervotecnico':      ['admin', 'gestor', 'funcionario'],
   '/agenda':      ['admin'],

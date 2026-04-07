@@ -11,16 +11,16 @@ import { useRole } from '@/hooks/useRole'
 // se não tiver 'roles', aparece para todos
 
 const menu = [
-  { name: 'Início',                href: '/',                  icon: '⌂' },
-  { name: 'Agenda',                href: '/agenda',            icon: '📅', roles: ['admin', 'gestor'] },
-  { name: 'Financeiro',            href: '/financeiro',        icon: '💰', roles: ['admin', 'gestor'] },
-  { name: 'Gestão de Pessoas',     href: '/gestao-de-pessoas', icon: '👥', roles: ['admin', 'gestor'] },
-  { name: 'Obras',                 href: '/obras',             icon: '🏗️' },
-  { name: 'Licitações',            href: '/licitacao',         icon: '📋', roles: ['admin', 'gestor'] },
-  { name: 'Documentos Gerais',     href: '/acervotecnico',     icon: '📁' },
-  { name: 'Propostas e Contratos', href: '/propostas',         icon: '📝', roles: ['admin', 'gestor'] },
-  { name: 'Estoque da Empresa',    href: '/estoque',           icon: '📦' },
-  { name: 'Compras',               href: '/compras',           icon: '🛒' },
+  { name: 'Início',                href: '/',                  icon: '⌂', roles: ['admin'] },
+  { name: 'Agenda',                href: '/agenda',            icon: '📅', roles: ['admin'] },
+  { name: 'Financeiro',            href: '/financeiro',        icon: '💰', roles: ['admin'] },
+  { name: 'Gestão de Pessoas',     href: '/gestao-de-pessoas', icon: '👥', roles: ['admin'] },
+  { name: 'Obras',                 href: '/obras',             icon: '🏗️', roles: ['admin','funcionario']  },
+  { name: 'Licitações',            href: '/licitacao',         icon: '📋', roles: ['admin','gestor'] },
+  { name: 'Documentos Gerais',     href: '/acervotecnico',     icon: '📁', roles: ['admin','gestor']  },
+  { name: 'Propostas e Contratos', href: '/propostas',         icon: '📝', roles: ['admin'] },
+  { name: 'Estoque da Empresa',    href: '/estoque',           icon: '📦', roles: ['admin','funcionario']  },
+  { name: 'Compras',               href: '/compras',           icon: '🛒', roles: ['admin','funcionario']  },
 ]
 
 export default function Sidebar() {
