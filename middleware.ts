@@ -20,7 +20,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Para onde cada role é redirecionado ao acessar '/'
-const HOME_BY_ROLE = {
+const HOME_BY_ROLE: Record<string, string> = {
   admin:  '/',       // fica no dashboard
   gestor: '/acervotecnico',  // vai direto para documentos gerais
   funcionario: '/compras',  // vai direto para compras
@@ -86,7 +86,16 @@ const HOME_BY_ROLE = {
     .eq('id', user.id)
     .single()
 
-  const role = (profile as { role: string } | null)?.role ?? 'viewer'
+const role = profile?.role ?? 'viewer'
+
+  // Se está na raiz e não é admin → redireciona para a home do seu role
+  if (pathname === '/') {
+    const home = HOME_BY_ROLE[role] ?? '/obras'
+    if (home !== '/') {
+      return NextResponse.redirect(new URL(home, request.url))
+    }
+  }
+
 
   const rotaRestrita = Object.entries(ROLE_ROUTES).find(([rota]) =>
     pathname.startsWith(rota)
