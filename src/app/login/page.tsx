@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
 
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   async function handleLogin() {
     setLoading(true)
@@ -25,7 +26,8 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/documentos')
+    const next = searchParams.get('next') ?? '/'
+    router.push(next)
   }
 
 
