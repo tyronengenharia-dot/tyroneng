@@ -4,27 +4,36 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import Image from "next/image";
+import Image from "next/image"
+import { useRole } from '@/hooks/useRole'
 
-// Menu
+// roles disponíveis: 'admin' | 'gestor' | 'viewer'
+// se não tiver 'roles', aparece para todos
 
 const menu = [
-  { name: 'Início',              href: '/',                icon: '⌂' },
-  { name: 'Agenda',              href: '/agenda',          icon: '📅' },
-  { name: 'Financeiro',          href: '/financeiro',      icon: '💰' },
-  { name: 'Gestão de Pessoas',   href: '/gestao-de-pessoas', icon: '👥' },
-  { name: 'Obras',               href: '/obras',           icon: '🏗️' },
-  { name: 'Licitações',          href: '/licitacao',       icon: '📋' },
-  { name: 'Documentos Gerais',   href: '/acervotecnico',   icon: '📁' },
-  { name: 'Propostas e Contratos', href: '/propostas',     icon: '📝' },
-  { name: 'Estoque da Empresa',  href: '/estoque',         icon: '📦' },
-  { name: 'Compras',             href: '/compras',         icon: '🛒' },
+  { name: 'Início',                href: '/',                  icon: '⌂' },
+  { name: 'Agenda',                href: '/agenda',            icon: '📅', roles: ['admin', 'gestor'] },
+  { name: 'Financeiro',            href: '/financeiro',        icon: '💰', roles: ['admin', 'gestor'] },
+  { name: 'Gestão de Pessoas',     href: '/gestao-de-pessoas', icon: '👥', roles: ['admin', 'gestor'] },
+  { name: 'Obras',                 href: '/obras',             icon: '🏗️' },
+  { name: 'Licitações',            href: '/licitacao',         icon: '📋', roles: ['admin', 'gestor'] },
+  { name: 'Documentos Gerais',     href: '/acervotecnico',     icon: '📁' },
+  { name: 'Propostas e Contratos', href: '/propostas',         icon: '📝', roles: ['admin', 'gestor'] },
+  { name: 'Estoque da Empresa',    href: '/estoque',           icon: '📦' },
+  { name: 'Compras',               href: '/compras',           icon: '🛒' },
 ]
 
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+  const { role } = useRole()
+
+  // Filtra o menu: mostra o item se não tiver 'roles' definido,
+  // ou se o role do usuário estiver na lista
+  const menuVisivel = menu.filter(item =>
+    !item.roles || (role && item.roles.includes(role))
+  )
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -60,7 +69,7 @@ export default function Sidebar() {
         </div>
 
         <nav className="p-2 space-y-1 mt-1">
-          {menu.map(item => {
+          {menuVisivel.map(item => {
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
             return (
               <Link

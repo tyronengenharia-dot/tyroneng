@@ -21,5 +21,7 @@ export function useRole() {
     role,
     isAdmin:  role === 'admin',
     isGestor: role === 'admin' || role === 'gestor',
+    isFuncionario: role === 'admin' || role === 'funcionario' || role === 'gestor',
+  
   }
 }

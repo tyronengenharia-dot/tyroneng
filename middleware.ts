@@ -33,6 +33,7 @@ export async function middleware(request: NextRequest) {
   '/notas-fiscais':      ['admin', 'funcionario'],
   '/obras':    ['admin', 'funcionario'],
   '/propostas':      ['admin'],
+  '/':      ['admin'],
 }
 
   // Cria resposta mutável para que o Supabase possa atualizar os cookies de sessão
