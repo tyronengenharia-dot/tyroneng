@@ -220,8 +220,10 @@ $$;
 -- -----------------------------------------------------------------------------
 
 -- Toda nova obra nasce com as 3 planilhas; Custo Real já bloqueada (Regra 1).
+-- SECURITY DEFINER: trigger runs as owner (postgres) so it can insert into
+-- planilhas even when RLS is enabled and the caller is the anon role.
 create or replace function tg_seed_planilhas_obra() returns trigger
-language plpgsql as $$
+language plpgsql security definer as $$
 begin
   insert into planilhas (obra_id, tipo, status) values
     (new.id, 'venda',           'rascunho'),
@@ -282,8 +284,9 @@ alter table planilha_itens      alter column planilha_id set not null;
 --    Também resolve planilha_id a partir de (obra_id,tipo) quando o app antigo
 --    não informa (compatibilidade com o service atual; aditivo exige id).
 -- -----------------------------------------------------------------------------
+-- SECURITY DEFINER: must SELECT from planilhas (RLS-enabled) regardless of caller role.
 create or replace function tg_planilha_write_guard() returns trigger
-language plpgsql as $$
+language plpgsql security definer as $$
 declare
   v_pid    uuid;
   v_tipo   text;
@@ -417,8 +420,21 @@ create trigger trg_insumos_updated before update on insumos
 create trigger trg_servicos_updated before update on servicos
   for each row execute function set_updated_at();
 
+-- -----------------------------------------------------------------------------
+-- 12. RLS — desabilita em todas as tabelas deste módulo.
+--     O app usa a anon key sem autenticação por usuário; as travas de negócio
+--     são impostas pelos triggers acima, não por RLS.
+-- -----------------------------------------------------------------------------
+alter table planilhas          disable row level security;
+alter table insumos            disable row level security;
+alter table servicos           disable row level security;
+alter table servico_insumos    disable row level security;
+alter table referencia_versoes disable row level security;
+alter table referencia_itens   disable row level security;
+alter table memoria_calculo    disable row level security;
+
 -- =============================================================================
--- ETAPA 11 (OPCIONAL / FUTURA) — tornar a Regra 4 ESTRITA
+-- ETAPA 13 (OPCIONAL / FUTURA) — tornar a Regra 4 ESTRITA
 -- Rodar só depois de migrar/limpar as linhas de protótipo (origem IS NULL):
 --
 --   -- conferir o que ainda está sem origem:

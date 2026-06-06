@@ -208,6 +208,24 @@ export function PlanilhaTab({
     )
   }
 
+  async function handleMoveCategoria(id: string, dir: 'up' | 'down') {
+    if (!editavel) return
+    const idx = categorias.findIndex(c => c.id === id)
+    const targetIdx = dir === 'up' ? idx - 1 : idx + 1
+    if (targetIdx < 0 || targetIdx >= categorias.length) return
+
+    // Optimistic update
+    const newCats = [...categorias]
+    ;[newCats[idx], newCats[targetIdx]] = [newCats[targetIdx], newCats[idx]]
+    setCategorias(newCats)
+
+    // Persist the two swapped rows with their new positional ordem
+    await Promise.all([
+      updateCategoria(newCats[idx].id,       { ordem: idx + 1 }),
+      updateCategoria(newCats[targetIdx].id, { ordem: targetIdx + 1 }),
+    ])
+  }
+
   // ── Item actions ──────────────────────────────────────────────────────────
 
   function abrirPicker(categoriaId: string) {
@@ -397,11 +415,29 @@ export function PlanilhaTab({
                             {/* Extra cat cells */}
                             {extraCatCells?.(cat.itens)}
 
+                            {/* Reorder ↑/↓ */}
+                            {editavel && (
+                              <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => handleMoveCategoria(cat.id, 'up')}
+                                  disabled={catIdx === 0}
+                                  title="Mover para cima"
+                                  className="text-white/30 hover:text-white/70 disabled:opacity-20 disabled:cursor-not-allowed text-[9px] leading-none"
+                                >▲</button>
+                                <button
+                                  onClick={() => handleMoveCategoria(cat.id, 'down')}
+                                  disabled={catIdx === categorias.length - 1}
+                                  title="Mover para baixo"
+                                  className="text-white/30 hover:text-white/70 disabled:opacity-20 disabled:cursor-not-allowed text-[9px] leading-none"
+                                >▼</button>
+                              </div>
+                            )}
+
                             {/* Delete */}
                             {editavel && (
                               <button
                                 onClick={() => handleDeleteCategoria(cat.id)}
-                                className="text-red-400/0 group-hover:text-red-400/60 hover:!text-red-400 transition-colors ml-2 text-xs"
+                                className="text-red-400/0 group-hover:text-red-400/60 hover:!text-red-400 transition-colors ml-1 text-xs"
                               >
                                 ✕
                               </button>
