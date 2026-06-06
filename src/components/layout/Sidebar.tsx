@@ -21,6 +21,8 @@ const menu = [
   { name: 'Propostas e Contratos', href: '/propostas',         icon: '📝', roles: ['admin'] },
   { name: 'Estoque da Empresa',    href: '/estoque',           icon: '📦', roles: ['admin','funcionario']  },
   { name: 'Compras',               href: '/compras',           icon: '🛒', roles: ['admin','funcionario']  },
+  { name: 'Insumos',               href: '/insumos',           icon: '🧱', roles: ['admin','funcionario']  },
+  { name: 'Serviços',              href: '/servicos',          icon: '🛠️', roles: ['admin','funcionario']  },
 ]
 
 export default function Sidebar() {
