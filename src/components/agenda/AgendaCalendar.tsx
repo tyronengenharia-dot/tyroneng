@@ -11,7 +11,7 @@ export function AgendaCalendar({
 }: {
   data: Compromisso[]
   onUpdate: (evento: Compromisso) => void
-  userId: string
+  userId: string | null
 }) {
   const today = new Date()
 

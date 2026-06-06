@@ -120,7 +120,7 @@ useEffect(() => {
         Number(item.desconto)
 
       return [
-        item.funcionarios?.nome,
+        item.funcionarios?.nome ?? '',
         item.salario_base,
         item.extras,
         total,

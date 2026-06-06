@@ -10,6 +10,7 @@ export type ObraTab =
   | 'venda'
   | 'custo-planejado'
   | 'custo-real'
+  | 'aditivos'
   | 'equipe'
   | 'documentos'
   | 'diario'
@@ -23,6 +24,7 @@ const TABS: { id: ObraTab; label: string }[] = [
   { id: 'venda',           label: 'Plan. Venda' },
   { id: 'custo-planejado', label: 'Custo Planejado' },
   { id: 'custo-real',      label: 'Custo Real' },
+  { id: 'aditivos',        label: 'Aditivos' },
   { id: 'equipe',          label: 'Equipe' },
   { id: 'documentos',      label: 'Docs & Contratos' },
   { id: 'diario',          label: 'Diário de Obra' },

@@ -91,6 +91,7 @@ export type PlanilhaHeader = {
 export type PlanilhaCategoria = {
   id: string
   obra_id: string
+  planilha_id?: string
   tipo: PlanilhaTipo
   nome: string
   ordem: number
@@ -102,6 +103,7 @@ export type PlanilhaItem = {
   id: string
   categoria_id: string
   obra_id: string
+  planilha_id?: string
   tipo: PlanilhaTipo
   codigo: string
   descricao: string

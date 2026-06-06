@@ -94,7 +94,7 @@ export function FolhaTab() {
           Number(item.adicional || 0) -
           Number(item.desconto || 0)
         return [
-          item.funcionarios?.nome,
+          item.funcionarios?.nome ?? '',
           fmtCurrency(item.salario_base),
           fmtCurrency(item.extras),
           fmtCurrency(item.adicional || 0),

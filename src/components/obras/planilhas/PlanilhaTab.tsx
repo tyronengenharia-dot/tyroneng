@@ -14,10 +14,11 @@ import {
   calcTotalItens,
 } from '@/services/planilhaService'
 import { getPlanilhasStatus, planilhaEditavel } from '@/services/planilhaEstadoService'
-import { PlanilhaCategoria, PlanilhaItem, PlanilhaTipo, PlanilhaHeader } from '@/types'
+import { PlanilhaCategoria, PlanilhaItem, PlanilhaTipo, PlanilhaHeader, PlanilhaStatus } from '@/types'
 import { Btn, EmptyState, LoadingSpinner } from '@/components/ui'
 import { fmtCurrency, cn } from '@/lib/utils'
 import { PlanilhaEstadoBar } from './PlanilhaEstadoBar'
+import { SelecionarItemModal, SelecaoItem } from './SelecionarItemModal'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,10 @@ type Props = {
   tipo: PlanilhaTipo
   title: string
   subtitle: string
+  /** quando definido, escopa a planilha por id (usado pelos aditivos) */
+  planilhaId?: string
+  /** status explícito da planilha (aditivos passam o seu próprio) */
+  status?: PlanilhaStatus
   /** extra column headers beyond the base columns */
   extraHeaders?: string[]
   /** render extra cells per item */
@@ -85,6 +90,8 @@ export function PlanilhaTab({
   tipo,
   title,
   subtitle,
+  planilhaId,
+  status,
   extraHeaders = [],
   extraCells,
   extraCatCells,
@@ -94,22 +101,26 @@ export function PlanilhaTab({
   const [headers, setHeaders]       = useState<PlanilhaHeader[]>([])
   const [loading, setLoading]       = useState(true)
   const [, setSaving]               = useState<Record<string, boolean>>({})
+  const [pickerCat, setPickerCat]   = useState<string | null>(null)
 
   // ── Estado / bloqueio ───────────────────────────────────────────────────────
   const meuHeader = headers.find(h => h.tipo === tipo)
-  // Sem header (migration não aplicada) => modo legado, sempre editável.
-  const editavel = meuHeader ? planilhaEditavel(tipo, meuHeader.status) : true
-  const temEstado = headers.length > 0
+  // status: prop explícita (aditivos) ou header da obra (planilhas nomeadas).
+  const statusEfetivo = status ?? meuHeader?.status
+  // Sem status (migration não aplicada) => modo legado, sempre editável.
+  const editavel = statusEfetivo ? planilhaEditavel(tipo, statusEfetivo) : true
+  // Barra de fluxo só nas planilhas nomeadas (aditivos têm controle próprio).
+  const temEstado = !planilhaId && headers.length > 0
 
   function bannerBloqueio(): string | null {
-    if (editavel || !meuHeader) return null
-    if (tipo === 'custo_real' && meuHeader.status === 'bloqueada')
+    if (editavel || !statusEfetivo) return null
+    if (tipo === 'custo_real' && statusEfetivo === 'bloqueada')
       return 'Custo Real bloqueado. Aprove o Custo Planejado para liberar a edição.'
-    if (tipo === 'custo_planejado' && meuHeader.status === 'aprovada')
+    if (tipo === 'custo_planejado' && statusEfetivo === 'aprovada')
       return 'Custo Planejado aprovado — somente leitura.'
-    if (tipo === 'venda' && meuHeader.status === 'fechada')
+    if (tipo === 'venda' && statusEfetivo === 'fechada')
       return 'Venda fechada — somente leitura.'
-    if (tipo === 'aditivo' && meuHeader.status === 'fechada')
+    if (tipo === 'aditivo' && statusEfetivo === 'fechada')
       return 'Aditivo fechado — somente leitura.'
     return 'Planilha bloqueada — somente leitura.'
   }
@@ -118,8 +129,8 @@ export function PlanilhaTab({
 
   const load = useCallback(async () => {
     const [cats, itens, hs] = await Promise.all([
-      getCategoriasByObra(obra_id, tipo),
-      getItensByObra(obra_id, tipo),
+      getCategoriasByObra(obra_id, tipo, planilhaId),
+      getItensByObra(obra_id, tipo, planilhaId),
       getPlanilhasStatus(obra_id),
     ])
     const merged: CategoriaComItens[] = cats.map(cat => ({
@@ -129,13 +140,13 @@ export function PlanilhaTab({
     }))
     setCategorias(merged)
     setHeaders(hs)
-  }, [obra_id, tipo])
+  }, [obra_id, tipo, planilhaId])
 
   useEffect(() => {
     let active = true
     Promise.all([
-      getCategoriasByObra(obra_id, tipo),
-      getItensByObra(obra_id, tipo),
+      getCategoriasByObra(obra_id, tipo, planilhaId),
+      getItensByObra(obra_id, tipo, planilhaId),
       getPlanilhasStatus(obra_id),
     ]).then(([cats, itens, hs]) => {
       if (!active) return
@@ -149,7 +160,7 @@ export function PlanilhaTab({
       setLoading(false)
     })
     return () => { active = false }
-  }, [obra_id, tipo])
+  }, [obra_id, tipo, planilhaId])
 
   // ── Totals ────────────────────────────────────────────────────────────────
 
@@ -165,6 +176,7 @@ export function PlanilhaTab({
       tipo,
       nome: 'Nova categoria',
       ordem: categorias.length + 1,
+      ...(planilhaId ? { planilha_id: planilhaId } : {}),
     }
     const created = await createCategoria(nova)
     if (!created) { toast.error('Erro ao criar categoria'); return }
@@ -198,28 +210,40 @@ export function PlanilhaTab({
 
   // ── Item actions ──────────────────────────────────────────────────────────
 
-  async function handleAddItem(categoriaId: string) {
+  function abrirPicker(categoriaId: string) {
     if (!editavel) return
+    setPickerCat(categoriaId)
+  }
+
+  // Regra 4: item criado a partir de Serviço / SINAPI / EMOP (snapshot + origem).
+  async function handleSelecionarItem(sel: SelecaoItem) {
+    const categoriaId = pickerCat
+    if (!categoriaId) return
     const cat = categorias.find(c => c.id === categoriaId)
     if (!cat) return
     const novoItem: Omit<PlanilhaItem, 'id' | 'created_at'> = {
       categoria_id: categoriaId,
       obra_id,
       tipo,
-      codigo: '',
-      descricao: '',
+      codigo: sel.codigo,
+      descricao: sel.descricao,
       quantidade: 0,
-      unidade: 'm²',
-      valor_unitario: 0,
+      unidade: sel.unidade,
+      valor_unitario: sel.valor_unitario,
       ordem: cat.itens.length + 1,
+      origem: sel.origem,
+      servico_id: sel.servico_id,
+      referencia_item_id: sel.referencia_item_id,
+      ...(planilhaId ? { planilha_id: planilhaId } : {}),
     }
     const created = await createItem(novoItem)
-    if (!created) { toast.error('Erro ao criar item'); return }
+    if (!created) { toast.error('Erro ao adicionar item'); return }
     setCategorias(prev =>
       prev.map(c =>
         c.id === categoriaId ? { ...c, itens: [...c.itens, created] } : c
       )
     )
+    setPickerCat(null)
   }
 
   function handleUpdateItemLocal(
@@ -404,7 +428,7 @@ export function PlanilhaTab({
                               <EditableCell
                                 value={item.codigo}
                                 placeholder="COD"
-                                readOnly={!editavel}
+                                readOnly={!editavel || !!item.origem}
                                 onChange={v => handleUpdateItemLocal(cat.id, item.id, 'codigo', v)}
                                 onBlur={() => handleSaveItem(cat.id, item)}
                               />
@@ -415,7 +439,7 @@ export function PlanilhaTab({
                               <EditableCell
                                 value={item.descricao}
                                 placeholder="Descrição do item"
-                                readOnly={!editavel}
+                                readOnly={!editavel || !!item.origem}
                                 onChange={v => handleUpdateItemLocal(cat.id, item.id, 'descricao', v)}
                                 onBlur={() => handleSaveItem(cat.id, item)}
                               />
@@ -438,7 +462,7 @@ export function PlanilhaTab({
                               <EditableCell
                                 value={item.unidade}
                                 placeholder="m²"
-                                readOnly={!editavel}
+                                readOnly={!editavel || !!item.origem}
                                 onChange={v => handleUpdateItemLocal(cat.id, item.id, 'unidade', v)}
                                 onBlur={() => handleSaveItem(cat.id, item)}
                               />
@@ -484,10 +508,10 @@ export function PlanilhaTab({
                         <tr>
                           <td colSpan={allHeaders.length} className="px-3 py-1.5 border-b border-white/[0.04]">
                             <button
-                              onClick={() => handleAddItem(cat.id)}
+                              onClick={() => abrirPicker(cat.id)}
                               className="text-xs text-blue-400/60 hover:text-blue-400 transition-colors"
                             >
-                              + Adicionar item
+                              + Adicionar item (do catálogo)
                             </button>
                           </td>
                         </tr>
@@ -512,6 +536,13 @@ export function PlanilhaTab({
           </div>
         )}
       </div>
+
+      {pickerCat && (
+        <SelecionarItemModal
+          onClose={() => setPickerCat(null)}
+          onSelect={handleSelecionarItem}
+        />
+      )}
     </div>
   )
 }

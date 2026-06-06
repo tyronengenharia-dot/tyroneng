@@ -15,6 +15,7 @@ type PessoaRef = { id: string; nome: string; contato: string }
 // dados iniciais aceitos pelo modal (compromisso + campos legados opcionais)
 type AgendaModalInitialData = Partial<Compromisso> & {
   clientes?: PessoaRef[] | string | null
+  pessoas?: PessoaRef[] | string | null
 }
 
 type FormState = {
@@ -64,7 +65,7 @@ function TipoSelect({
 }: {
   value: string
   onChange: (v: string) => void
-  userId: string
+  userId?: string
 }) {
   const [tiposExtras, setTiposExtras] = useState<string[]>([])
   const [novoTipo, setNovoTipo] = useState('')
@@ -466,7 +467,7 @@ function LocalAutocomplete({
   local: string
   endereco: string
   onChange: (local: string, endereco: string) => void
-  userId: string
+  userId?: string
 }) {
   const [locais, setLocais] = useState<LocalSalvo[]>([])
   const [query, setQuery] = useState(local)
@@ -659,7 +660,7 @@ function PessoasPicker({
 }: {
   selecionados: PessoaRef[]
   onChange: (pessoas: PessoaRef[]) => void
-  userId: string
+  userId?: string
 }) {
   const [todos, setTodos] = useState<PessoaSalva[]>([])
   const [query, setQuery] = useState('')
@@ -931,7 +932,7 @@ export function AgendaModal({
       }
 
       let result
-      if (isEdit) {
+      if (initialData?.id) {
         const res = await updateEvento(initialData.id, payload)
         result = res?.[0] || { ...initialData, ...payload }
       } else {
@@ -951,6 +952,7 @@ export function AgendaModal({
   // ── excluir ──
   async function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); return }
+    if (!initialData?.id) return
     setDeleting(true)
     try {
       await deleteEvento(initialData.id)

@@ -5,14 +5,16 @@ import { PlanilhaCategoria, PlanilhaItem, PlanilhaTipo } from '@/types'
 
 export async function getCategoriasByObra(
   obra_id: string,
-  tipo: PlanilhaTipo
+  tipo: PlanilhaTipo,
+  planilhaId?: string
 ): Promise<PlanilhaCategoria[]> {
-  const { data, error } = await supabase
-    .from('planilha_categorias')
-    .select('*')
-    .eq('obra_id', obra_id)
-    .eq('tipo', tipo)
-    .order('ordem', { ascending: true })
+  let query = supabase.from('planilha_categorias').select('*')
+  // Aditivos: escopo por planilha_id (vários compartilham tipo='aditivo').
+  query = planilhaId
+    ? query.eq('planilha_id', planilhaId)
+    : query.eq('obra_id', obra_id).eq('tipo', tipo)
+
+  const { data, error } = await query.order('ordem', { ascending: true })
 
   if (error) {
     console.error('getCategoriasByObra error:', error)
@@ -85,14 +87,15 @@ export async function getItensByCategoria(
 
 export async function getItensByObra(
   obra_id: string,
-  tipo: PlanilhaTipo
+  tipo: PlanilhaTipo,
+  planilhaId?: string
 ): Promise<PlanilhaItem[]> {
-  const { data, error } = await supabase
-    .from('planilha_itens')
-    .select('*')
-    .eq('obra_id', obra_id)
-    .eq('tipo', tipo)
-    .order('ordem', { ascending: true })
+  let query = supabase.from('planilha_itens').select('*')
+  query = planilhaId
+    ? query.eq('planilha_id', planilhaId)
+    : query.eq('obra_id', obra_id).eq('tipo', tipo)
+
+  const { data, error } = await query.order('ordem', { ascending: true })
 
   if (error) {
     console.error('getItensByObra error:', error)

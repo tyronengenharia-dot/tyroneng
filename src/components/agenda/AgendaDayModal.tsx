@@ -15,7 +15,7 @@ export function AgendaDayModal({
   eventos: Compromisso[]
   onClose: () => void
   onUpdate: (evento: Compromisso) => void
-  userId: string
+  userId: string | null
 }) {
   const [editing, setEditing] = useState<Compromisso | null>(null)
 
@@ -64,7 +64,7 @@ export function AgendaDayModal({
       {/* 🔥 MODAL DE EDIÇÃO CORRIGIDO */}
       {editing && (
         <AgendaModal
-          userId={userId}
+          userId={userId ?? undefined}
           initialData={editing}
           onClose={() => setEditing(null)}
           onSaved={(eventoAtualizado: Compromisso) => {

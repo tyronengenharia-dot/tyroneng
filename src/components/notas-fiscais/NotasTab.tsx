@@ -18,13 +18,6 @@ export function NotasTab() {
   const [type, setType] = useState('todos')
   const [status, setStatus] = useState('todos')
 
-  async function fetchData() {
-    setLoading(true)
-    const result = await getNotas()
-    setData(result)
-    setLoading(false)
-  }
-
   useEffect(() => {
     let active = true
     getNotas().then(result => {
