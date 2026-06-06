@@ -3,13 +3,15 @@
 import { useEffect, useState } from 'react'
 import { Modal, Btn } from '@/components/ui'
 import { getServicos } from '@/services/servicoService'
+import { getInsumos } from '@/services/insumoService'
 import { getVersoes, getItens } from '@/services/referenciaService'
 import { ServicoComCusto } from '@/types/servico'
+import { Insumo } from '@/types/insumo'
 import { ReferenciaItem, ReferenciaVersaoComContagem } from '@/types/referencia'
 
 // O que o picker devolve: snapshot + vínculo de origem (Regra 4).
 export type SelecaoItem = {
-  origem: 'servico' | 'sinapi' | 'emop'
+  origem: 'servico' | 'sinapi' | 'emop' | null  // null = insumo direto (sem composição)
   servico_id: string | null
   referencia_item_id: string | null
   codigo: string
@@ -18,15 +20,18 @@ export type SelecaoItem = {
   valor_unitario: number
 }
 
-type Aba = 'servico' | 'sinapi' | 'emop'
+type Aba = 'servico' | 'insumo' | 'sinapi' | 'emop'
 
 const abas: { value: Aba; label: string }[] = [
   { value: 'servico', label: 'Serviços' },
-  { value: 'sinapi', label: 'SINAPI' },
-  { value: 'emop', label: 'EMOP' },
+  { value: 'insumo',  label: 'Insumos' },
+  { value: 'sinapi',  label: 'SINAPI' },
+  { value: 'emop',    label: 'EMOP' },
 ]
 
-const LIMITE = 200
+// Limite de exibição: aplicado só na listagem sem busca ativa para não travar o scroll.
+// Com busca ativa a lista já é pequena, sem limite.
+const LIMITE_SEM_BUSCA = 200
 
 function formatCurrency(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -36,6 +41,12 @@ function versaoLabel(v: ReferenciaVersaoComContagem) {
   const m = String(v.mes).padStart(2, '0')
   const extra = [v.uf, v.rotulo].filter(Boolean).join(' ')
   return `${m}/${v.ano}${extra ? ' · ' + extra : ''} (${v.total_itens})`
+}
+
+const TIPO_LABEL: Record<string, string> = {
+  material:     'Material',
+  mao_de_obra:  'Mão de obra',
+  equipamento:  'Equipamento',
 }
 
 interface Props {
@@ -48,29 +59,28 @@ export function SelecionarItemModal({ onClose, onSelect }: Props) {
   const [search, setSearch] = useState('')
 
   const [servicos, setServicos] = useState<ServicoComCusto[]>([])
-  const [versoes, setVersoes] = useState<ReferenciaVersaoComContagem[]>([])
+  const [insumos,  setInsumos]  = useState<Insumo[]>([])
+  const [versoes,  setVersoes]  = useState<ReferenciaVersaoComContagem[]>([])
   const [loadingCat, setLoadingCat] = useState(true)
 
   const [versaoSel, setVersaoSel] = useState('')
-  const [itensRef, setItensRef] = useState<ReferenciaItem[]>([])
+  const [itensRef,  setItensRef]  = useState<ReferenciaItem[]>([])
   const [itensVersao, setItensVersao] = useState('')
 
   // Carrega os catálogos uma vez.
   useEffect(() => {
     let active = true
-    Promise.all([getServicos(), getVersoes()]).then(([s, v]) => {
+    Promise.all([getServicos(), getInsumos(), getVersoes()]).then(([s, ins, v]) => {
       if (!active) return
       setServicos(s)
+      setInsumos(ins)
       setVersoes(v)
       setLoadingCat(false)
     })
-    return () => {
-      active = false
-    }
+    return () => { active = false }
   }, [])
 
-  const versoesDaFonte = aba === 'servico' ? [] : versoes.filter(v => v.fonte === aba)
-  // Default derivado (sem setState em efeito): a versão mais recente da fonte.
+  const versoesDaFonte = (aba === 'servico' || aba === 'insumo') ? [] : versoes.filter(v => v.fonte === aba)
   const versaoEfetiva =
     versaoSel && versoesDaFonte.some(v => v.id === versaoSel)
       ? versaoSel
@@ -85,22 +95,41 @@ export function SelecionarItemModal({ onClose, onSelect }: Props) {
       setItensRef(rows)
       setItensVersao(versaoEfetiva)
     })
-    return () => {
-      active = false
-    }
+    return () => { active = false }
   }, [versaoEfetiva])
 
-  const loadingItens = aba !== 'servico' && !!versaoEfetiva && itensVersao !== versaoEfetiva
+  const loadingItens = (aba === 'sinapi' || aba === 'emop') && !!versaoEfetiva && itensVersao !== versaoEfetiva
 
-  const q = search.toLowerCase()
-  const servicosFiltrados = servicos
-    .filter(s => s.codigo.toLowerCase().includes(q) || s.descricao.toLowerCase().includes(q))
-    .slice(0, LIMITE)
+  // ── Filtragem ───────────────────────────────────────────────────────────────
+
+  const q = search.trim().toLowerCase()
+  const comBusca = q.length > 0
+
+  function applyLimit<T>(arr: T[]): T[] {
+    return comBusca ? arr : arr.slice(0, LIMITE_SEM_BUSCA)
+  }
+
+  const servicosFiltrados = applyLimit(
+    servicos.filter(s => s.codigo.toLowerCase().includes(q) || s.descricao.toLowerCase().includes(q))
+  )
+
+  const insumosFiltrados = applyLimit(
+    insumos
+      .filter(i => i.ativo)
+      .filter(i => i.codigo.toLowerCase().includes(q) || i.descricao.toLowerCase().includes(q))
+  )
 
   const itensDaVersao = itensVersao === versaoEfetiva ? itensRef : []
-  const itensFiltrados = itensDaVersao
-    .filter(i => i.codigo.toLowerCase().includes(q) || i.descricao.toLowerCase().includes(q))
-    .slice(0, LIMITE)
+  const itensFiltrados = applyLimit(
+    itensDaVersao.filter(i => i.codigo.toLowerCase().includes(q) || i.descricao.toLowerCase().includes(q))
+  )
+
+  // Totais para o rodapé informativo
+  const totalServicos = servicos.filter(s => s.codigo.toLowerCase().includes(q) || s.descricao.toLowerCase().includes(q)).length
+  const totalInsumos  = insumos.filter(i => i.ativo && (i.codigo.toLowerCase().includes(q) || i.descricao.toLowerCase().includes(q))).length
+  const totalItens    = itensDaVersao.filter(i => i.codigo.toLowerCase().includes(q) || i.descricao.toLowerCase().includes(q)).length
+
+  // ── Seleção ──────────────────────────────────────────────────────────────────
 
   function escolherServico(s: ServicoComCusto) {
     onSelect({
@@ -114,9 +143,21 @@ export function SelecionarItemModal({ onClose, onSelect }: Props) {
     })
   }
 
+  function escolherInsumo(i: Insumo) {
+    onSelect({
+      origem: null,           // insumo direto: sem composição formal
+      servico_id: null,
+      referencia_item_id: null,
+      codigo: i.codigo,
+      descricao: i.descricao,
+      unidade: i.unidade,
+      valor_unitario: i.valor_unitario,
+    })
+  }
+
   function escolherRef(i: ReferenciaItem) {
     onSelect({
-      origem: aba,
+      origem: aba as 'sinapi' | 'emop',
       servico_id: null,
       referencia_item_id: i.id,
       codigo: i.codigo,
@@ -126,10 +167,31 @@ export function SelecionarItemModal({ onClose, onSelect }: Props) {
     })
   }
 
+  // ── Contagem exibida no rodapé ──────────────────────────────────────────────
+
+  function rodapeInfo() {
+    if (aba === 'servico') {
+      const shown = servicosFiltrados.length
+      const total = totalServicos
+      if (shown < total) return `Mostrando ${shown} de ${total} — use a busca para refinar`
+      return `${total} serviço${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`
+    }
+    if (aba === 'insumo') {
+      const shown = insumosFiltrados.length
+      const total = totalInsumos
+      if (shown < total) return `Mostrando ${shown} de ${total} — use a busca para refinar`
+      return `${total} insumo${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`
+    }
+    const shown = itensFiltrados.length
+    const total = totalItens
+    if (shown < total) return `Mostrando ${shown} de ${total} — use a busca para refinar`
+    return `${total} item${total !== 1 ? 'ns' : ''} encontrado${total !== 1 ? 's' : ''}`
+  }
+
   return (
     <Modal
       title="Adicionar item"
-      subtitle="Selecione de Serviços, SINAPI ou EMOP — sem digitação livre"
+      subtitle="Selecione de Serviços, Insumos, SINAPI ou EMOP — sem digitação livre"
       onClose={onClose}
       width="max-w-3xl"
       footer={
@@ -144,7 +206,7 @@ export function SelecionarItemModal({ onClose, onSelect }: Props) {
           {abas.map(a => (
             <button
               key={a.value}
-              onClick={() => setAba(a.value)}
+              onClick={() => { setAba(a.value); setSearch('') }}
               className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
                 aba === a.value
                   ? 'bg-white text-black'
@@ -158,7 +220,7 @@ export function SelecionarItemModal({ onClose, onSelect }: Props) {
 
         {/* Controles: versão (referência) + busca */}
         <div className="flex gap-2">
-          {aba !== 'servico' && (
+          {(aba === 'sinapi' || aba === 'emop') && (
             <select
               value={versaoEfetiva}
               onChange={e => setVersaoSel(e.target.value)}
@@ -180,6 +242,7 @@ export function SelecionarItemModal({ onClose, onSelect }: Props) {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar por código ou descrição..."
+            autoFocus
             className="flex-1 bg-[#1a1a1a] border border-white/8 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-white/20 transition-colors"
           />
         </div>
@@ -189,6 +252,7 @@ export function SelecionarItemModal({ onClose, onSelect }: Props) {
           <div className="max-h-80 overflow-y-auto">
             {loadingCat ? (
               <p className="text-sm text-white/40 py-8 text-center">Carregando catálogos...</p>
+
             ) : aba === 'servico' ? (
               servicosFiltrados.length === 0 ? (
                 <p className="text-sm text-white/40 py-8 text-center">
@@ -214,6 +278,38 @@ export function SelecionarItemModal({ onClose, onSelect }: Props) {
                   </tbody>
                 </table>
               )
+
+            ) : aba === 'insumo' ? (
+              insumosFiltrados.length === 0 ? (
+                <p className="text-sm text-white/40 py-8 text-center">
+                  {insumos.length === 0 ? 'Nenhum insumo cadastrado.' : 'Nenhum insumo encontrado.'}
+                </p>
+              ) : (
+                <table className="w-full text-sm">
+                  <tbody>
+                    {insumosFiltrados.map(i => (
+                      <tr
+                        key={i.id}
+                        onClick={() => escolherInsumo(i)}
+                        className="border-b border-white/[0.05] last:border-0 hover:bg-white/5 cursor-pointer transition-colors"
+                      >
+                        <td className="px-3 py-2 font-mono text-white/50 whitespace-nowrap">{i.codigo}</td>
+                        <td className="px-3 py-2 text-white/80">{i.descricao}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-white/30">
+                            {TIPO_LABEL[i.tipo] ?? i.tipo}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-white/40 whitespace-nowrap">{i.unidade}</td>
+                        <td className="px-3 py-2 text-right font-mono text-green-400 whitespace-nowrap">
+                          {formatCurrency(i.valor_unitario)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )
+
             ) : loadingItens ? (
               <p className="text-sm text-white/40 py-8 text-center">Carregando itens...</p>
             ) : versoesDaFonte.length === 0 ? (
@@ -244,7 +340,13 @@ export function SelecionarItemModal({ onClose, onSelect }: Props) {
             )}
           </div>
         </div>
-        <p className="text-xs text-white/30">Clique em uma linha para adicionar o item à planilha.</p>
+
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-white/30">Clique em uma linha para adicionar o item à planilha.</p>
+          {!loadingCat && (
+            <p className="text-xs text-white/20">{rodapeInfo()}</p>
+          )}
+        </div>
       </div>
     </Modal>
   )
