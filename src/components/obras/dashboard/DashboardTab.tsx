@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { getFinanceiroByObra, calcReceitas, calcDespesas, calcSaldo } from '@/services/financeiroService'
-import { getMedicoesByObra } from '@/services/medicaoService'
+import { getMedicaoResumo, MedicaoResumo } from '@/services/medicaoService'
 import { getEtapasByObra } from '@/services/etapaService'
-import { Financeiro, Medicao, Etapa } from '@/types'
+import { Financeiro, Etapa } from '@/types'
 import { KpiCard, LoadingSpinner, ProgressBar } from '@/components/ui'
 import { fmtCurrency } from '@/lib/utils'
 
@@ -12,23 +12,24 @@ type Props = { obra_id: string; budget: number }
 
 export function DashboardTab({ obra_id, budget }: Props) {
   const [financeiro, setFinanceiro] = useState<Financeiro[]>([])
-  const [medicoes, setMedicoes] = useState<Medicao[]>([])
+  const [medicao, setMedicao] = useState<MedicaoResumo | null>(null)
   const [etapas, setEtapas] = useState<Etapa[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function load() {
-      const [f, m, e] = await Promise.all([
-        getFinanceiroByObra(obra_id),
-        getMedicoesByObra(obra_id),
-        getEtapasByObra(obra_id),
-      ])
+    let active = true
+    Promise.all([
+      getFinanceiroByObra(obra_id),
+      getMedicaoResumo(obra_id),
+      getEtapasByObra(obra_id),
+    ]).then(([f, m, e]) => {
+      if (!active) return
       setFinanceiro(f)
-      setMedicoes(m)
+      setMedicao(m)
       setEtapas(e)
       setLoading(false)
-    }
-    load()
+    })
+    return () => { active = false }
   }, [obra_id])
 
   if (loading) return <LoadingSpinner />
@@ -38,8 +39,8 @@ export function DashboardTab({ obra_id, budget }: Props) {
   const saldo     = calcSaldo(financeiro)
   const margem    = receitas > 0 ? ((saldo / receitas) * 100).toFixed(1) : '0'
 
-  const totalMedido   = medicoes.reduce((a, m) => a + m.value, 0)
-  const pctMedicao    = budget > 0 ? ((totalMedido / budget) * 100).toFixed(1) : '0'
+  const totalMedido   = medicao?.totalMedido ?? 0
+  const pctMedicao    = (medicao?.pct ?? 0).toFixed(1)
 
   const etapasConcl   = etapas.filter(e => e.status === 'concluida').length
   const etapasTotal   = etapas.length
@@ -54,7 +55,7 @@ export function DashboardTab({ obra_id, budget }: Props) {
         <KpiCard label="Receitas" value={fmtCurrency(receitas)} sub="entradas pagas" variant="green" />
         <KpiCard label="Despesas" value={fmtCurrency(despesas)} sub="custos reais" variant="red" />
         <KpiCard label="Saldo" value={fmtCurrency(saldo)} sub={`margem ${margem}%`} variant="blue" />
-        <KpiCard label="Medições Pagas" value={fmtCurrency(totalMedido)} sub={`${pctMedicao}% do contrato`} variant="amber" />
+        <KpiCard label="Medido (acum.)" value={fmtCurrency(totalMedido)} sub={`${pctMedicao}% do contrato`} variant="amber" />
       </div>
 
       {/* Two columns */}
