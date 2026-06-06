@@ -13,7 +13,7 @@ export function VendaTab({ obra_id }: { obra_id: string }) {
       tipo="venda"
       title="Planilha de Venda"
       subtitle="Valores contratuais acordados com o cliente / prefeitura"
-      permitirImportarCusto
+      isVenda
     />
   )
 }

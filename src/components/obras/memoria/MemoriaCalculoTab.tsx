@@ -6,6 +6,7 @@ import { X, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { PlanilhaItem, PlanilhaCategoria, PlanilhaTipo, PlanilhaHeader } from '@/types'
 import { getCategoriasByObra, getItensByObra, updateItem } from '@/services/planilhaService'
 import { getPlanilhasStatus, planilhaEditavel } from '@/services/planilhaEstadoService'
+import { getObraById } from '@/services/obraService'
 import { MemoriaCalculo } from '@/types/memoria'
 import {
   getMemoriaByObra,
@@ -14,6 +15,7 @@ import {
   deleteMemoria,
 } from '@/services/memoriaService'
 import { avaliarFormula } from '@/lib/avaliarFormula'
+import { exportMemoriaPdf, MemoriaPdfCategoria } from '@/lib/exportMemoriaPdf'
 import { Btn, EmptyState, LoadingSpinner } from '@/components/ui'
 
 const planilhaOpcoes: { value: PlanilhaTipo; label: string }[] = [
@@ -197,6 +199,7 @@ export function MemoriaCalculoTab({ obra_id }: { obra_id: string }) {
   const [memoria,    setMemoria]    = useState<MemoriaCalculo[]>([])
   const [headers,    setHeaders]    = useState<PlanilhaHeader[]>([])
   const [loading,    setLoading]    = useState(true)
+  const [exporting,  setExporting]  = useState(false)
 
   // Categorias colapsadas; itens com memória aberta (múltiplos simultâneos)
   const [catColapsadas, setCatColapsadas] = useState<Set<string>>(new Set())
@@ -305,6 +308,52 @@ export function MemoriaCalculoTab({ obra_id }: { obra_id: string }) {
     return linhas.length > 0 && Math.abs(total - item.quantidade) >= 0.0001
   }).length
 
+  // ── Exportar PDF ─────────────────────────────────────────────────────────────
+
+  const mapItem = (item: PlanilhaItem) => ({
+    codigo:            item.codigo,
+    descricao:         item.descricao,
+    unidade:           item.unidade,
+    quantidadePlanilha: item.quantidade,
+    linhas: linhasDoItem(item.id).map(l => ({
+      descricao:  l.descricao,
+      formula:    l.formula ?? null,
+      quantidade: l.quantidade,
+    })),
+  })
+
+  async function handleExportPdf() {
+    if (categorias.length === 0 && itens.length === 0) {
+      toast.error('Nada para exportar — sem itens.')
+      return
+    }
+    setExporting(true)
+    try {
+      const obra = await getObraById(obra_id)
+      const cats: MemoriaPdfCategoria[] = categorias
+        .map(cat => ({
+          nome: cat.nome,
+          itens: itens.filter(i => i.categoria_id === cat.id).map(mapItem),
+        }))
+        .filter(c => c.itens.length > 0)
+
+      if (itensSemCat.length > 0) {
+        cats.push({ nome: 'Sem categoria', itens: itensSemCat.map(mapItem) })
+      }
+
+      exportMemoriaPdf({
+        obra: { name: obra?.name ?? 'Obra', client: obra?.client, location: obra?.location },
+        planilhaLabel: planilhaOpcoes.find(o => o.value === tipo)?.label ?? '',
+        categorias: cats,
+      })
+    } catch (e) {
+      console.error('export memoria pdf error:', e)
+      toast.error('Erro ao gerar o PDF.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (loading) return <LoadingSpinner />
@@ -329,20 +378,29 @@ export function MemoriaCalculoTab({ obra_id }: { obra_id: string }) {
             Quantitativos e fórmulas que justificam o volume de cada item.
           </p>
         </div>
-        <div className="flex gap-2">
-          {planilhaOpcoes.map(o => (
-            <button
-              key={o.value}
-              onClick={() => setTipo(o.value)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                tipo === o.value
-                  ? 'bg-white text-black'
-                  : 'bg-[#1a1a1a] text-gray-500 hover:text-white border border-white/8'
-              }`}
-            >
-              {o.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex gap-2">
+            {planilhaOpcoes.map(o => (
+              <button
+                key={o.value}
+                onClick={() => setTipo(o.value)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                  tipo === o.value
+                    ? 'bg-white text-black'
+                    : 'bg-[#1a1a1a] text-gray-500 hover:text-white border border-white/8'
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={handleExportPdf}
+            disabled={exporting || vazio}
+            className="px-3 py-1.5 text-xs font-medium bg-white/5 text-white/50 border border-white/10 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {exporting ? 'Gerando…' : 'Exportar PDF'}
+          </button>
         </div>
       </div>
 

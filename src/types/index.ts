@@ -96,6 +96,8 @@ export type PlanilhaCategoria = {
   nome: string
   ordem: number
   collapsed?: boolean
+  // Vínculo Venda → Custo: categoria da venda gerada a partir desta do custo.
+  origem_custo_cat_id?: string | null
   created_at?: string
 }
 
@@ -115,6 +117,8 @@ export type PlanilhaItem = {
   origem?: 'servico' | 'sinapi' | 'emop' | null
   servico_id?: string | null
   referencia_item_id?: string | null
+  // Vínculo Venda → Custo: item da venda re-precificado a partir deste do custo.
+  origem_custo_item_id?: string | null
   created_at?: string
 }
 
