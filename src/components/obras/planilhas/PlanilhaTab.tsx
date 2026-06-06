@@ -15,9 +15,11 @@ import {
   importarCustoParaVenda,
 } from '@/services/planilhaService'
 import { getPlanilhasStatus, planilhaEditavel } from '@/services/planilhaEstadoService'
+import { getObraById } from '@/services/obraService'
 import { PlanilhaCategoria, PlanilhaItem, PlanilhaTipo, PlanilhaHeader, PlanilhaStatus } from '@/types'
 import { Btn, EmptyState, LoadingSpinner, Modal } from '@/components/ui'
 import { fmtCurrency, cn } from '@/lib/utils'
+import { exportPlanilhaPdf, PlanilhaPdfMode } from '@/lib/exportPlanilhaPdf'
 import { PlanilhaEstadoBar } from './PlanilhaEstadoBar'
 import { SelecionarItemModal, SelecaoItem } from './SelecionarItemModal'
 
@@ -114,6 +116,10 @@ export function PlanilhaTab({
   const [importing, setImporting]     = useState(false)
   const [custoPreview, setCustoPreview] =
     useState<{ cats: number; itens: number; total: number } | null>(null)
+
+  // ── Exportar PDF ────────────────────────────────────────────────────────────
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exporting, setExporting]   = useState(false)
 
   // ── Estado / bloqueio ───────────────────────────────────────────────────────
   const meuHeader = headers.find(h => h.tipo === tipo)
@@ -221,6 +227,26 @@ export function PlanilhaTab({
     toast.success(`Importado: ${res.categorias} categoria(s), ${res.itens} item(ns).`)
     setImportOpen(false)
     await load()
+  }
+
+  async function handleExportPdf(mode: PlanilhaPdfMode) {
+    setExportOpen(false)
+    if (categorias.length === 0) { toast.error('Nada para exportar — planilha vazia.'); return }
+    setExporting(true)
+    try {
+      const obra = await getObraById(obra_id)
+      exportPlanilhaPdf({
+        obra: { name: obra?.name ?? 'Obra', client: obra?.client, location: obra?.location },
+        titulo: title,
+        categorias,
+        mode,
+      })
+    } catch (e) {
+      console.error('export pdf error:', e)
+      toast.error('Erro ao gerar o PDF.')
+    } finally {
+      setExporting(false)
+    }
   }
 
   function handleUpdateCategoriaNome(id: string, nome: string) {
@@ -386,9 +412,44 @@ export function PlanilhaTab({
               <Btn variant="ghost" onClick={abrirImport}>Importar do Custo (BDI)</Btn>
             )}
             {editavel && <Btn variant="primary" onClick={handleAddCategoria}>+ Categoria</Btn>}
-            <button className="px-3 py-1.5 text-xs font-medium bg-white/5 text-white/50 border border-white/10 rounded-xl hover:bg-white/10 transition-colors">
-              Exportar XLSX
-            </button>
+
+            {/* Exportar PDF — resumo ou completa */}
+            <div className="relative">
+              <button
+                onClick={() => setExportOpen(o => !o)}
+                disabled={exporting || categorias.length === 0}
+                className="px-3 py-1.5 text-xs font-medium bg-white/5 text-white/50 border border-white/10 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+              >
+                {exporting ? 'Gerando…' : 'Exportar PDF'}
+                <span className="text-[9px]">▾</span>
+              </button>
+
+              {exportOpen && (
+                <>
+                  <button
+                    className="fixed inset-0 z-40 cursor-default"
+                    onClick={() => setExportOpen(false)}
+                    aria-hidden
+                  />
+                  <div className="absolute right-0 mt-1.5 z-50 w-60 bg-[#161616] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+                    <button
+                      onClick={() => handleExportPdf('resumo')}
+                      className="w-full text-left px-3.5 py-2.5 hover:bg-white/[0.04] transition-colors"
+                    >
+                      <span className="block text-xs font-medium text-white/85">Resumo</span>
+                      <span className="block text-[11px] text-white/35 mt-0.5">Só as categorias e totais</span>
+                    </button>
+                    <button
+                      onClick={() => handleExportPdf('completa')}
+                      className="w-full text-left px-3.5 py-2.5 hover:bg-white/[0.04] transition-colors border-t border-white/[0.06]"
+                    >
+                      <span className="block text-xs font-medium text-white/85">Completa</span>
+                      <span className="block text-[11px] text-white/35 mt-0.5">Categorias + todos os itens expandidos</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
