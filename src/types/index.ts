@@ -30,6 +30,11 @@ export type Financeiro = {
   status: FinanceiroStatus
   date: string
   created_at?: string
+  // Vínculo opcional a um item da planilha de Custo Real (no que/onde gastou).
+  planilha_item_id?: string | null
+  // Foto do comprovante (bucket "comprovantes"): URL pública + caminho no Storage.
+  comprovante_url?: string | null
+  comprovante_path?: string | null
 }
 
 // ─── MEDIÇÃO ─────────────────────────────────────────────────────────────────
@@ -46,6 +51,33 @@ export type Medicao = {
   date: string
   periodo?: string
   status: MedicaoStatus
+  created_at?: string
+}
+
+// ─── MEDIÇÃO — BOLETINS (vinculados à Planilha de Venda + Aditivos fechados) ───
+// Modelo correto de medição de obra: cada boletim mede, por item do contrato,
+// a quantidade executada no período. Acumulado de todos os boletins = medido;
+// contratado − medido = saldo a receber.
+
+export type MedicaoBoletimStatus = 'rascunho' | 'aprovado' | 'pago'
+
+export type MedicaoBoletim = {
+  id: string
+  obra_id: string
+  numero: number
+  periodo?: string | null
+  data_medicao: string
+  status: MedicaoBoletimStatus
+  observacao?: string | null
+  created_at?: string
+}
+
+export type MedicaoItem = {
+  id: string
+  boletim_id: string
+  planilha_item_id: string
+  quantidade: number      // medido neste boletim
+  valor_unitario: number  // snapshot do preço contratado
   created_at?: string
 }
 

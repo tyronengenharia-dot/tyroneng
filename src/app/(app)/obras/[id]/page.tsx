@@ -126,7 +126,7 @@ export default function ObraPage() {
         {tab === 'dashboard'       && <DashboardTab     obra_id={id} budget={obra.budget} />}
         {tab === 'financeiro'      && <FinanceiroTab     obra_id={id} />}
         {tab === 'planejamento'    && <PlanejamentoTab   obra_id={id} />}
-        {tab === 'medicoes'        && <MedicoesTab       obra_id={id} budget={obra.budget} />}
+        {tab === 'medicoes'        && <MedicoesTab       obra_id={id} />}
         {tab === 'venda'           && <VendaTab          obra_id={id} />}
         {tab === 'custo-planejado' && <CustoPlanejadoTab obra_id={id} />}
         {tab === 'custo-real'      && <CustoRealTab      obra_id={id} />}

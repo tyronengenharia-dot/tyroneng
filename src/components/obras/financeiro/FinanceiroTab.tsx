@@ -1,17 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ChangeEvent } from 'react'
 import { toast } from 'sonner'
 import {
   getFinanceiroByObra,
   createFinanceiro,
   updateFinanceiro,
   deleteFinanceiro,
+  uploadComprovante,
+  removeComprovante,
   calcReceitas,
   calcDespesas,
   calcSaldo,
 } from '@/services/financeiroService'
-import { Financeiro, FinanceiroStatus, FinanceiroType } from '@/types'
+import { getItensByObra } from '@/services/planilhaService'
+import { Financeiro, FinanceiroStatus, FinanceiroType, PlanilhaItem } from '@/types'
 import {
   Badge, Btn, EmptyState, LoadingSpinner, Modal,
   Input, Select, TableCard, TableHead, Th, Td,
@@ -25,11 +28,13 @@ type Props = { obra_id: string }
 function FinanceiroModal({
   obra_id,
   initial,
+  custoItens,
   onClose,
   onSuccess,
 }: {
   obra_id: string
   initial: Financeiro | null
+  custoItens: PlanilhaItem[]
   onClose: () => void
   onSuccess: () => void
 }) {
@@ -42,8 +47,36 @@ function FinanceiroModal({
     status:      initial?.status ?? 'pago',
     category:    initial?.category ?? 'Obra',
   })
+  const [planilhaItemId, setPlanilhaItemId] = useState(initial?.planilha_item_id ?? '')
+
+  // Comprovante (foto)
+  const existingUrl  = initial?.comprovante_url ?? null
+  const existingPath = initial?.comprovante_path ?? null
+  const [file, setFile]               = useState<File | null>(null)
+  const [filePreview, setFilePreview] = useState<string | null>(null)
+  const [cleared, setCleared]         = useState(false)
+  const preview = filePreview ?? (cleared ? null : existingUrl)
 
   const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }))
+
+  function onPickFile(e: ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    e.target.value = '' // permite re-selecionar o mesmo arquivo
+    if (!f) return
+    if (!f.type.startsWith('image/')) { toast.error('Envie uma imagem (foto do comprovante).'); return }
+    if (f.size > 8 * 1024 * 1024)     { toast.error('Imagem muito grande (máx. 8 MB).'); return }
+    if (filePreview) URL.revokeObjectURL(filePreview)
+    setFile(f)
+    setFilePreview(URL.createObjectURL(f))
+    setCleared(false)
+  }
+
+  function removeFoto() {
+    if (filePreview) URL.revokeObjectURL(filePreview)
+    setFile(null)
+    setFilePreview(null)
+    setCleared(true) // marca a remoção de uma foto já existente
+  }
 
   async function handleSave() {
     if (!form.description.trim() || !form.value || !form.date) {
@@ -51,28 +84,64 @@ function FinanceiroModal({
       return
     }
     setSaving(true)
-    const payload = {
-      obra_id,
-      description: form.description.trim(),
-      value: parseFloat(form.value),
-      date: form.date,
-      type: form.type as FinanceiroType,
-      status: form.status as FinanceiroStatus,
-      category: form.category,
-    }
-    const ok = initial
-      ? await updateFinanceiro(initial.id, payload)
-      : await createFinanceiro(payload)
+    try {
+      // Campos novos só entram no payload quando relevantes → compatível pré-migration.
+      const extra: Partial<Pick<Financeiro, 'planilha_item_id' | 'comprovante_url' | 'comprovante_path'>> = {}
 
-    setSaving(false)
-    if (ok) {
+      if (planilhaItemId)             extra.planilha_item_id = planilhaItemId
+      else if (initial?.planilha_item_id) extra.planilha_item_id = null
+
+      let novoPath: string | null = null
+      if (file) {
+        const up = await uploadComprovante(file, obra_id)
+        novoPath = up.path
+        extra.comprovante_url  = up.url
+        extra.comprovante_path = up.path
+      } else if (cleared && existingUrl) {
+        extra.comprovante_url  = null
+        extra.comprovante_path = null
+      }
+
+      const payload = {
+        obra_id,
+        description: form.description.trim(),
+        value: parseFloat(form.value),
+        date: form.date,
+        type: form.type as FinanceiroType,
+        status: form.status as FinanceiroStatus,
+        category: form.category,
+        ...extra,
+      }
+
+      const ok = initial
+        ? await updateFinanceiro(initial.id, payload)
+        : await createFinanceiro(payload)
+
+      if (!ok) { toast.error('Erro ao salvar'); return }
+
+      // Remove do Storage a foto antiga substituída/removida (best-effort).
+      if (existingPath && existingPath !== novoPath && (file || cleared)) {
+        await removeComprovante(existingPath)
+      }
+
       toast.success(initial ? 'Atualizado!' : 'Lançamento criado!')
       onSuccess()
       onClose()
-    } else {
-      toast.error('Erro ao salvar')
+    } catch (e) {
+      console.error('save financeiro error:', e)
+      toast.error(e instanceof Error ? e.message : 'Erro ao salvar')
+    } finally {
+      setSaving(false)
     }
   }
+
+  const custoOptions = [
+    { value: '', label: '— Sem vínculo —' },
+    ...custoItens.map(it => ({
+      value: it.id,
+      label: `${it.codigo ? it.codigo + ' — ' : ''}${it.descricao || 'Sem descrição'}`,
+    })),
+  ]
 
   return (
     <Modal
@@ -111,6 +180,33 @@ function FinanceiroModal({
 
       <Select label="Categoria" value={form.category} onChange={e => set('category', e.target.value)}
         options={['Obra','Material','Mão de obra','Equipamento','Serviço','Receita','Outros'].map(c => ({ value: c, label: c }))} />
+
+      <Select
+        label="Item do Custo Real (no que / onde gastou)"
+        value={planilhaItemId}
+        onChange={e => setPlanilhaItemId(e.target.value)}
+        options={custoOptions}
+      />
+
+      <div>
+        <label className="block text-xs font-medium text-white/40 mb-1.5">Comprovante (foto)</label>
+        {preview ? (
+          <div className="flex items-center gap-3">
+            <a href={preview} target="_blank" rel="noopener noreferrer" className="shrink-0">
+              <img src={preview} alt="Comprovante" className="h-24 w-24 object-cover rounded-lg border border-white/10" />
+            </a>
+            <button type="button" onClick={removeFoto} className="text-xs text-red-400/70 hover:text-red-400 transition-colors">
+              Remover
+            </button>
+          </div>
+        ) : (
+          <label className="flex flex-col items-center justify-center gap-1 border border-dashed border-white/15 rounded-xl py-6 cursor-pointer hover:bg-white/[0.03] transition-colors">
+            <input type="file" accept="image/*" className="hidden" onChange={onPickFile} />
+            <span className="text-xs text-white/50">Clique para carregar a foto</span>
+            <span className="text-[10px] text-white/25">JPG/PNG · até 8 MB</span>
+          </label>
+        )}
+      </div>
     </Modal>
   )
 }
@@ -122,26 +218,37 @@ const STATUS_FILTERS = ['Todos', 'Pago', 'Pendente', 'Atrasado']
 
 export function FinanceiroTab({ obra_id }: Props) {
   const [data, setData]         = useState<Financeiro[]>([])
+  const [custoItens, setCustoItens] = useState<PlanilhaItem[]>([])
   const [loading, setLoading]   = useState(true)
   const [tipoFilter, setTipo]   = useState('Todos')
   const [statusFilter, setStatus] = useState('Todos')
   const [modal, setModal]       = useState<'create' | Financeiro | null>(null)
 
   async function load() {
-    const result = await getFinanceiroByObra(obra_id)
+    const [result, citens] = await Promise.all([
+      getFinanceiroByObra(obra_id),
+      getItensByObra(obra_id, 'custo_real'),
+    ])
     setData(result)
+    setCustoItens(citens)
     setLoading(false)
   }
 
   useEffect(() => {
     let active = true
-    getFinanceiroByObra(obra_id).then(result => {
+    Promise.all([
+      getFinanceiroByObra(obra_id),
+      getItensByObra(obra_id, 'custo_real'),
+    ]).then(([result, citens]) => {
       if (!active) return
       setData(result)
+      setCustoItens(citens)
       setLoading(false)
     })
     return () => { active = false }
   }, [obra_id])
+
+  const custoById = new Map(custoItens.map(i => [i.id, i]))
 
   const filtered = data.filter(i => {
     const tipoOk =
@@ -154,9 +261,9 @@ export function FinanceiroTab({ obra_id }: Props) {
     return tipoOk && statusOk
   })
 
-  async function handleDelete(id: string) {
+  async function handleDelete(item: Financeiro) {
     if (!confirm('Excluir este lançamento?')) return
-    const ok = await deleteFinanceiro(id)
+    const ok = await deleteFinanceiro(item.id, item.comprovante_path)
     if (ok) { toast.success('Excluído!'); load() }
     else toast.error('Erro ao excluir')
   }
@@ -234,11 +341,38 @@ export function FinanceiroTab({ obra_id }: Props) {
               <Th>Ações</Th>
             </TableHead>
             <tbody>
-              {filtered.map(item => (
+              {filtered.map(item => {
+                const custo = item.planilha_item_id ? custoById.get(item.planilha_item_id) : undefined
+                return (
                 <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
                   <Td>
-                    <div className="font-medium text-white/90 truncate">{item.description}</div>
-                    <div className="text-xs text-white/30 mt-0.5">{item.category}</div>
+                    <div className="flex items-center gap-2.5">
+                      {item.comprovante_url && (
+                        <a
+                          href={item.comprovante_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Ver comprovante"
+                          className="shrink-0"
+                        >
+                          <img src={item.comprovante_url} alt="" className="h-9 w-9 object-cover rounded-md border border-white/10" />
+                        </a>
+                      )}
+                      <div className="min-w-0">
+                        <div className="font-medium text-white/90 truncate">{item.description}</div>
+                        <div className="text-xs text-white/30 mt-0.5 truncate">
+                          {item.category}
+                          {custo && (
+                            <>
+                              <span className="text-white/15"> · </span>
+                              <span className="text-white/45">
+                                {custo.codigo ? `${custo.codigo} — ` : ''}{custo.descricao || 'Item Custo Real'}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </Td>
                   <Td><Badge value={item.type} /></Td>
                   <Td right mono>
@@ -251,11 +385,12 @@ export function FinanceiroTab({ obra_id }: Props) {
                   <Td>
                     <div className="flex gap-1.5">
                       <Btn onClick={() => setModal(item)}>Editar</Btn>
-                      <Btn variant="danger" onClick={() => handleDelete(item.id)}>Excluir</Btn>
+                      <Btn variant="danger" onClick={() => handleDelete(item)}>Excluir</Btn>
                     </div>
                   </Td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         )}
@@ -265,6 +400,7 @@ export function FinanceiroTab({ obra_id }: Props) {
         <FinanceiroModal
           obra_id={obra_id}
           initial={modal === 'create' ? null : modal}
+          custoItens={custoItens}
           onClose={() => setModal(null)}
           onSuccess={load}
         />
