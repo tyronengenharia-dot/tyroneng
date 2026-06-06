@@ -7,8 +7,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
+import type { ComparacaoObra } from '@/types/comparacao'
 
-export function ComparacaoChart({ data }: any) {
+export function ComparacaoChart({ data }: { data: ComparacaoObra[] }) {
   return (
     <div className="bg-[#111] p-5 rounded-2xl border border-white/10 h-80">
       <h3 className="text-white mb-4">Comparação de obras</h3>

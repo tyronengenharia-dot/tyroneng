@@ -1,6 +1,13 @@
 'use client'
 
-export function RelatoriosFilters({ period, setPeriod }: any) {
+import type { Dispatch, SetStateAction } from 'react'
+
+interface Props {
+  period: string
+  setPeriod: Dispatch<SetStateAction<string>>
+}
+
+export function RelatoriosFilters({ period, setPeriod }: Props) {
   return (
     <div className="flex gap-2">
       {['7d', '30d', '90d', '1y'].map(p => (

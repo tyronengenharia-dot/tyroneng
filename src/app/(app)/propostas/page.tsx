@@ -12,8 +12,8 @@ export default async function PropostasPage() {
 
   try {
     propostas = await listarPropostas()
-  } catch (e: any) {
-    erro = e.message
+  } catch (e) {
+    erro = e instanceof Error ? e.message : String(e)
   }
 
   if (erro) {

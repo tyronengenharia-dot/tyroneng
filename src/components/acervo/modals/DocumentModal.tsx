@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { X, AlertTriangle, Upload } from 'lucide-react'
 import type { DocumentCategory, DocumentFormData } from '@/types/acervo'
 import { DOCUMENT_CATEGORIES } from '@/lib/constants'
@@ -33,20 +33,17 @@ export default function DocumentModal({
   loading = false,
 }: DocumentModalProps) {
   const [form, setForm] = useState<DocumentFormData>(defaultForm)
-  const [alertMsg, setAlertMsg] = useState<string | null>(null)
 
   function set<K extends keyof DocumentFormData>(key: K, value: DocumentFormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
   // Recalculate alert whenever validade or diasRenovar changes
-  useEffect(() => {
+  const alertMsg = useMemo(() => {
     if (!form.temValidade || !form.dataValidade || !form.diasRenovar) {
-      setAlertMsg(null)
-      return
+      return null
     }
-    const msg = getAlertMessage(form.dataValidade, parseInt(form.diasRenovar) || 0)
-    setAlertMsg(msg)
+    return getAlertMessage(form.dataValidade, parseInt(form.diasRenovar) || 0)
   }, [form.temValidade, form.dataValidade, form.diasRenovar])
 
   async function handleSave() {

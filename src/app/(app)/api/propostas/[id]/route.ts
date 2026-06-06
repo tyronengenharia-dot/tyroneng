@@ -11,8 +11,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const proposta = await buscarProposta(id)
     if (!proposta) return NextResponse.json({ error: 'Não encontrada' }, { status: 404 })
     return NextResponse.json(proposta)
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
@@ -22,8 +23,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const updates = await req.json()
     const atualizada = await atualizarProposta(id, updates)
     return NextResponse.json(atualizada)
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
@@ -32,7 +34,8 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     const { id } = await params  // ← await aqui
     await excluirProposta(id)
     return NextResponse.json({ ok: true })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -25,7 +25,15 @@ export default function PessoasProximasTab() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    let active = true
+    supabase.from('pessoas_proximas').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
+      if (!active) return
+      if (!error) setData(data || [])
+      setLoading(false)
+    })
+    return () => { active = false }
+  }, [])
 
   const filtered = data.filter(p =>
     p.nome.toLowerCase().includes(search.toLowerCase()) ||

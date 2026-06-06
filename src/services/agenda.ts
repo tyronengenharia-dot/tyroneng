@@ -17,7 +17,7 @@ export async function getAgenda(userId: string) {
 }
 
 // ➕ CRIAR
-export async function createEvento(payload: any) {
+export async function createEvento(payload: Record<string, unknown>) {
   const { data, error } = await supabase
     .from('agenda')
     .insert(payload)
@@ -33,7 +33,7 @@ export async function createEvento(payload: any) {
 }
 
 // ✏️ EDITAR
-export async function updateEvento(id: string, payload: any) {
+export async function updateEvento(id: string, payload: Record<string, unknown>) {
   const { data, error } = await supabase
     .from('agenda')
     .update(payload)

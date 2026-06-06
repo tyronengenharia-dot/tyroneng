@@ -59,8 +59,8 @@ export default function EditarPropostaPage() {
       }
       router.push(`/propostas/${params.id}`)
       router.refresh()
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
       setSaving(false)
     }

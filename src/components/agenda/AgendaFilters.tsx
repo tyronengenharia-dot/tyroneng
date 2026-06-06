@@ -1,6 +1,12 @@
 'use client'
 
-export function AgendaFilters({ status, setStatus }: any) {
+export function AgendaFilters({
+  status,
+  setStatus,
+}: {
+  status: string
+  setStatus: (status: string) => void
+}) {
   return (
     <div className="flex gap-2">
       {['todos', 'pendente', 'concluido'].map(s => (

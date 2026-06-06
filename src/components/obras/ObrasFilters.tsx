@@ -1,6 +1,11 @@
 'use client'
 
-export function ObrasFilters({ status, setStatus }: any) {
+type Props = {
+  status: string
+  setStatus: (status: string) => void
+}
+
+export function ObrasFilters({ status, setStatus }: Props) {
   return (
     <div className="flex gap-2">
       {['todos', 'andamento', 'concluida'].map(item => (

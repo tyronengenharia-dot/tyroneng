@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient'
+import type { Material, Veiculo, Equipamento, Maquinario } from '@/types/estoque'
 
 // ─── Materiais ───────────────────────────────────────────────────────────────
 
@@ -11,12 +12,12 @@ export async function getMateriais() {
   return data
 }
 
-export async function createMaterial(payload: any) {
+export async function createMaterial(payload: Omit<Material, 'id' | 'created_at'>) {
   const { error } = await supabase.from('materiais').insert(payload)
   if (error) throw error
 }
 
-export async function updateMaterial(id: string, payload: any) {
+export async function updateMaterial(id: string, payload: Partial<Material>) {
   const { error } = await supabase.from('materiais').update(payload).eq('id', id)
   if (error) throw error
 }
@@ -37,12 +38,12 @@ export async function getVeiculos() {
   return data
 }
 
-export async function createVeiculo(payload: any) {
+export async function createVeiculo(payload: Omit<Veiculo, 'id' | 'created_at'>) {
   const { error } = await supabase.from('veiculos').insert(payload)
   if (error) throw error
 }
 
-export async function updateVeiculo(id: string, payload: any) {
+export async function updateVeiculo(id: string, payload: Partial<Veiculo>) {
   const { error } = await supabase.from('veiculos').update(payload).eq('id', id)
   if (error) throw error
 }
@@ -63,12 +64,12 @@ export async function getEquipamentos() {
   return data
 }
 
-export async function createEquipamento(payload: any) {
+export async function createEquipamento(payload: Omit<Equipamento, 'id' | 'created_at'>) {
   const { error } = await supabase.from('equipamentos').insert(payload)
   if (error) throw error
 }
 
-export async function updateEquipamento(id: string, payload: any) {
+export async function updateEquipamento(id: string, payload: Partial<Equipamento>) {
   const { error } = await supabase.from('equipamentos').update(payload).eq('id', id)
   if (error) throw error
 }
@@ -89,12 +90,12 @@ export async function getMaquinarios() {
   return data
 }
 
-export async function createMaquinario(payload: any) {
+export async function createMaquinario(payload: Omit<Maquinario, 'id' | 'created_at'>) {
   const { error } = await supabase.from('maquinarios').insert(payload)
   if (error) throw error
 }
 
-export async function updateMaquinario(id: string, payload: any) {
+export async function updateMaquinario(id: string, payload: Partial<Maquinario>) {
   const { error } = await supabase.from('maquinarios').update(payload).eq('id', id)
   if (error) throw error
 }

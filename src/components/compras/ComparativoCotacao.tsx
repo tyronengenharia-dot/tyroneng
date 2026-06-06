@@ -395,7 +395,7 @@ export function ComparativoCotacao({
                 </svg>
               </div>
               <p className="text-[12px] font-medium text-zinc-400">Nenhuma cotação registrada</p>
-              <p className="mt-1 text-[11px] text-zinc-600">Clique em "Adicionar cotação" para começar.</p>
+              <p className="mt-1 text-[11px] text-zinc-600">Clique em &quot;Adicionar cotação&quot; para começar.</p>
               <button
                 onClick={() => { setModalCotacaoAberto(true); onAdicionarCotacao?.(solicitacaoAtiva) }}
                 className="mt-4 flex items-center gap-1.5 rounded-lg bg-indigo-600/80 px-4 py-2 text-[11px] font-medium text-white transition-colors hover:bg-indigo-600"

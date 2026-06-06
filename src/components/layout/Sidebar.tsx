@@ -23,6 +23,7 @@ const menu = [
   { name: 'Compras',               href: '/compras',           icon: '🛒', roles: ['admin','funcionario']  },
   { name: 'Insumos',               href: '/insumos',           icon: '🧱', roles: ['admin','funcionario']  },
   { name: 'Serviços',              href: '/servicos',          icon: '🛠️', roles: ['admin','funcionario']  },
+  { name: 'Referências',           href: '/referencias',       icon: '📑', roles: ['admin','funcionario']  },
 ]
 
 export default function Sidebar() {

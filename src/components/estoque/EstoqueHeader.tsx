@@ -8,7 +8,16 @@ function fmt(value: number) {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-const CARDS = [
+type StatCard = {
+  key: keyof EstoqueStats
+  label: string
+  icon: React.ReactNode
+  format: (v: number) => string
+  accent: string
+  bg: string
+}
+
+const CARDS: StatCard[] = [
   {
     key: 'totalAtivos',
     label: 'Total de Ativos',
@@ -105,7 +114,7 @@ export function EstoqueHeader() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         {CARDS.map(card => {
-          const value = stats ? (stats as any)[card.key] : null
+          const value = stats ? stats[card.key] : null
           return (
             <div
               key={card.key}

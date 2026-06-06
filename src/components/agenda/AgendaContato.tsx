@@ -244,15 +244,19 @@ export function AgendaContatos({ userId, onClose }: { userId: string; onClose: (
 
   useEffect(() => {
     if (!userId) return
-    setLoading(true)
+    let active = true
     Promise.all([
       supabase.from('agenda_pessoas').select('*').eq('user_id', userId).order('nome'),
       supabase.from('agenda_locais').select('*').eq('user_id', userId).order('nome'),
     ]).then(([{ data: c }, { data: l }]) => {
+      if (!active) return
       if (c) setPessoas(c)
       if (l) setLocais(l)
       setLoading(false)
     })
+    return () => {
+      active = false
+    }
   }, [userId])
 
   // ── pessoas ──

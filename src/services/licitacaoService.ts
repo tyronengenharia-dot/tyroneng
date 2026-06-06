@@ -1,10 +1,39 @@
 import { supabase } from '@/lib/supabaseClient'
-import { Licitacao, LicitacaoFormData, LicitacaoStatus, ChecklistItem, ChecklistStatus } from '@/types/licitacao'
+import { Licitacao, LicitacaoFormData, LicitacaoStatus, ChecklistItem, ChecklistStatus, ChecklistCategoria } from '@/types/licitacao'
 
 
 // ─── helpers banco → app ──────────────────────────────────────────────────────
 
-function rowToLicitacao(row: any, checklist: ChecklistItem[] = []): Licitacao {
+// Linhas cruas das tabelas Supabase (snake_case) consumidas pelos mappers.
+interface LicitacaoRow {
+  id: string
+  titulo: string
+  orgao: string
+  local: string
+  valor_estimado: number | string | null
+  data_entrega?: string | null
+  data_disputa?: string | null
+  hora_disputa?: string | null
+  status: string
+  modalidade: string
+  processo: string
+  lote: string
+  plataforma: string
+  responsavel: string
+  observacoes: string
+}
+
+interface ChecklistRow {
+  id: string
+  nome: string
+  categoria: ChecklistCategoria
+  descricao?: string | null
+  observacao?: string | null
+  status: ChecklistStatus
+  responsavel?: string | null
+}
+
+function rowToLicitacao(row: LicitacaoRow, checklist: ChecklistItem[] = []): Licitacao {
   return {
     id:            row.id,
     titulo:        row.titulo,
@@ -25,7 +54,7 @@ function rowToLicitacao(row: any, checklist: ChecklistItem[] = []): Licitacao {
   }
 }
 
-function rowToChecklistItem(row: any): ChecklistItem {
+function rowToChecklistItem(row: ChecklistRow): ChecklistItem {
   return {
   id: row.id,
   nome: row.nome,
@@ -117,7 +146,7 @@ export async function createLicitacao(
   return rowToLicitacao(row)
 }
 
-export async function updateLicitacao(id: string, data: LicitacaoFormData, checklist: { id: string; descricao: any; status: ChecklistStatus; observacao: any }[]): Promise<void> {
+export async function updateLicitacao(id: string, data: LicitacaoFormData, checklist: Pick<ChecklistItem, 'id' | 'descricao' | 'status' | 'observacao'>[]): Promise<void> {
   const { error } = await supabase
     .from('licitacoes')
     .update(formToRow(data))

@@ -1,6 +1,8 @@
-export function RelatoriosKPIs({ data }: any) {
-  const receitas = data.reduce((acc: number, i: any) => acc + i.receitas, 0)
-  const despesas = data.reduce((acc: number, i: any) => acc + i.despesas, 0)
+import type { Relatorio } from '@/types/relatorio'
+
+export function RelatoriosKPIs({ data }: { data: Relatorio[] }) {
+  const receitas = data.reduce((acc, i) => acc + i.receitas, 0)
+  const despesas = data.reduce((acc, i) => acc + i.despesas, 0)
   const lucro = receitas - despesas
 
   return (
@@ -12,7 +14,7 @@ export function RelatoriosKPIs({ data }: any) {
   )
 }
 
-function Card({ title, value }: any) {
+function Card({ title, value }: { title: string; value: number }) {
   return (
     <div className="bg-[#111] p-5 rounded-2xl border border-white/10">
       <p className="text-gray-400 text-sm">{title}</p>

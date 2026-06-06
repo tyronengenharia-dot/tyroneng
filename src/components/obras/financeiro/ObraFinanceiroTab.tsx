@@ -1,16 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { getFinanceiroByObra } from '@/services/obraFinanceiroService'
 
 import { FinanceTable as FinanceiroTable } from './FinanceiroTable'
 import { FinanceiroFilters } from './FinanceiroFilters'
 import { FinanceModal as FinanceiroModal } from './FinanceiroModal'
 import { FinancialRecord } from '@/types/financial'
+import { ObraFinanceiro } from '@/types/obraFinanceiro'
 
-export function ObraFinanceiroTab({ obra_id }: any) {
-  const [data, setData] = useState<any[]>([])
-  const [filtered, setFiltered] = useState<any[]>([])
+export function ObraFinanceiroTab({ obra_id }: { obra_id: string }) {
+  const [data, setData] = useState<ObraFinanceiro[]>([])
 
   const [type, setType] = useState('todos')
   const [status, setStatus] = useState('todos')
@@ -20,13 +20,12 @@ export function ObraFinanceiroTab({ obra_id }: any) {
     async function fetch() {
       const result = await getFinanceiroByObra(obra_id)
       setData(result)
-      setFiltered(result)
     }
 
     fetch()
   }, [obra_id])
 
-  useEffect(() => {
+  const filtered = useMemo(() => {
     let result = [...data]
 
     if (type !== 'todos') {
@@ -37,7 +36,7 @@ export function ObraFinanceiroTab({ obra_id }: any) {
       result = result.filter(i => i.status === status)
     }
 
-    setFiltered(result)
+    return result
   }, [type, status, data])
 
   const saldo = filtered.reduce(

@@ -105,8 +105,8 @@ export default function ProfessionalModal({
 
       onSave(newProf)
       onClose()
-    } catch (err: any) {
-      alert(err.message ?? 'Erro ao salvar profissional')
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Erro ao salvar profissional')
     } finally {
       setLoading(false)
     }

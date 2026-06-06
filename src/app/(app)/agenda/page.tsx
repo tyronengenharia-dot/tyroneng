@@ -22,6 +22,8 @@ export default function AgendaPage() {
   const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
+    let active = true
+
     let id = localStorage.getItem('user_id')
 
     if (!id) {
@@ -29,28 +31,15 @@ export default function AgendaPage() {
       localStorage.setItem('user_id', id)
     }
 
-    setUserId(id)
-  }, [])
-
-  async function load() {
-    if (!userId) return
-
-    const result = await getAgenda(userId)
-
-    const formatted = result.map((item: any) => {
-      const data = new Date(item.data)
-
-      return {
-        ...item,
-        title: item.titulo,
-        date: data.toISOString().split('T')[0],
-        time: data.toTimeString().slice(0, 5),
-      }
+    const resolvedId = id
+    Promise.resolve().then(() => {
+      if (active) setUserId(resolvedId)
     })
 
-    setData(formatted)
-    setLoading(false)
-  }
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     if (!userId) return
@@ -66,7 +55,7 @@ export default function AgendaPage() {
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          const item = (payload.new || payload.old) as any
+          const item = (payload.new || payload.old) as Compromisso
           if (!item) return
 
           const data = new Date(item.data)
@@ -97,10 +86,34 @@ export default function AgendaPage() {
       : data.filter(i => i.status === status)
 
   useEffect(() => {
-    if (userId) load()
+    if (!userId) return
+
+    let active = true
+
+    getAgenda(userId).then(result => {
+      if (!active) return
+
+      const formatted = result.map((item: Compromisso) => {
+        const data = new Date(item.data)
+
+        return {
+          ...item,
+          title: item.titulo,
+          date: data.toISOString().split('T')[0],
+          time: data.toTimeString().slice(0, 5),
+        }
+      })
+
+      setData(formatted)
+      setLoading(false)
+    })
+
+    return () => {
+      active = false
+    }
   }, [userId])
 
-  function handleUpdate(updated: any) {
+  function handleUpdate(updated: Compromisso) {
     const data = new Date(updated.data)
 
     const formatted = {
@@ -180,7 +193,7 @@ export default function AgendaPage() {
         <AgendaModal
           userId={userId}
           onClose={() => setOpenModal(false)}
-          onSaved={(novoEvento: any) => {
+          onSaved={(novoEvento: Compromisso) => {
             const data = new Date(novoEvento.data)
             const formatted = {
               ...novoEvento,

@@ -1,4 +1,11 @@
-export function PlanejamentoTable({ data }: any) {
+type PlanejamentoTableItem = {
+  id: string
+  category: string
+  planned_value: number
+  actual_value: number
+}
+
+export function PlanejamentoTable({ data }: { data: PlanejamentoTableItem[] }) {
   return (
     <div className="bg-[#111] rounded-2xl border border-white/10 overflow-hidden">
       <table className="w-full text-sm">
@@ -12,7 +19,7 @@ export function PlanejamentoTable({ data }: any) {
         </thead>
 
         <tbody>
-          {data.map((item: any) => {
+          {data.map(item => {
             const diff = item.planned_value - item.actual_value
 
             return (

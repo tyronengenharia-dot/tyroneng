@@ -1,5 +1,18 @@
 import { supabase } from '@/lib/supabaseClient'
 
+// linha da folha mensal (tabela folha_mensal + join com funcionarios)
+export type FolhaItem = {
+  id: string
+  salario_base: number
+  extras: number
+  adicional?: number | null
+  desconto?: number | null
+  fechado?: boolean | null
+  pago?: boolean | null
+  observacao?: string | null
+  funcionarios?: { nome: string } | null
+}
+
 function fmtCurrency(value: number) {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -12,11 +25,11 @@ export function FolhaTable({
   onUpdate,
   onOpenAdjust,
 }: {
-  data: any[]
+  data: FolhaItem[]
   onUpdate: () => void
-  onOpenAdjust: (item: any) => void
+  onOpenAdjust: (item: FolhaItem) => void
 }) {
-  async function togglePago(item: any) {
+  async function togglePago(item: FolhaItem) {
     await supabase
       .from('folha_mensal')
       .update({ pago: !item.pago })
@@ -51,7 +64,7 @@ export function FolhaTable({
         </thead>
 
         <tbody className="divide-y divide-white/[0.05]">
-          {data.map((item: any) => {
+          {data.map((item) => {
             const adicional = Number(item.adicional || 0)
             const desconto = Number(item.desconto || 0)
             const isLocked = item.fechado === true

@@ -38,8 +38,8 @@ export function PropostaTable({ data }: Props) {
       const res = await fetch(`/api/propostas/${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Erro ao excluir')
       router.refresh()
-    } catch (e: any) {
-      setErrMsg(e.message)
+    } catch (e: unknown) {
+      setErrMsg(e instanceof Error ? e.message : 'Erro ao excluir')
     } finally {
       setDeleting(null)
       setConfirmId(null)

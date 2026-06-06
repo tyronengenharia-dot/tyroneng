@@ -51,8 +51,8 @@ export function StatusActions({ proposta }: Props) {
         throw new Error(body?.error ?? `Erro ${res.status}`)
       }
       router.refresh()
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Erro ao atualizar status')
     } finally {
       setLoading(null)
     }

@@ -19,7 +19,7 @@ export async function getPayroll(month: string) {
   return data || []
 }
 
-export async function createPayroll(item: any) {
+export async function createPayroll(item: Record<string, unknown>) {
   const { error } = await supabase
     .from('folha_pagamento')
     .insert([item])

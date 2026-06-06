@@ -19,7 +19,7 @@ export function FinanceModal({ onClose, initialData, onSuccess }: Props) {
   const [date, setDate] = useState(initialData?.date ?? '')
   const [type, setType] = useState(initialData?.type ?? 'entrada')
   const [status, setStatus] = useState(initialData?.status ?? 'pago')
-  const [category, setCategory] = useState((initialData as any)?.category ?? 'Obra')
+  const [category, setCategory] = useState(initialData?.category ?? 'Obra')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {

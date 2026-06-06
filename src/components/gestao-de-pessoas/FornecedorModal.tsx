@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { Fornecedor } from '@/types/pessoa'
 import { ModalBase } from './shared/ModalBase'
@@ -15,24 +15,24 @@ interface Props {
 export function FornecedorModal({ fornecedor, onClose, onSave }: Props) {
   const isEditing = !!fornecedor
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({
-    nome: '', razao_social: '', cnpj: '', categoria: '', email: '',
-    telefone: '', contato_nome: '', endereco: '', cidade: '', estado: '',
-    status: 'ativo', avaliacao: '0', observacoes: '',
-  })
-
-  useEffect(() => {
-    if (fornecedor) setForm({
-      nome: fornecedor.nome || '', razao_social: fornecedor.razao_social || '',
-      cnpj: fornecedor.cnpj || '', categoria: fornecedor.categoria || '',
-      email: fornecedor.email || '', telefone: fornecedor.telefone || '',
-      contato_nome: fornecedor.contato_nome || '', endereco: fornecedor.endereco || '',
-      cidade: fornecedor.cidade || '', estado: fornecedor.estado || '',
-      status: fornecedor.status || 'ativo',
-      avaliacao: fornecedor.avaliacao?.toString() || '0',
-      observacoes: fornecedor.observacoes || '',
-    })
-  }, [fornecedor])
+  const [form, setForm] = useState(() =>
+    fornecedor
+      ? {
+          nome: fornecedor.nome || '', razao_social: fornecedor.razao_social || '',
+          cnpj: fornecedor.cnpj || '', categoria: fornecedor.categoria || '',
+          email: fornecedor.email || '', telefone: fornecedor.telefone || '',
+          contato_nome: fornecedor.contato_nome || '', endereco: fornecedor.endereco || '',
+          cidade: fornecedor.cidade || '', estado: fornecedor.estado || '',
+          status: fornecedor.status || 'ativo',
+          avaliacao: fornecedor.avaliacao?.toString() || '0',
+          observacoes: fornecedor.observacoes || '',
+        }
+      : {
+          nome: '', razao_social: '', cnpj: '', categoria: '', email: '',
+          telefone: '', contato_nome: '', endereco: '', cidade: '', estado: '',
+          status: 'ativo', avaliacao: '0', observacoes: '',
+        }
+  )
 
   function set(key: string, value: string) { setForm(f => ({ ...f, [key]: value })) }
 

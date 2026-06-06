@@ -8,7 +8,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
-export function ChartResumo({ data }: any) {
+export function ChartResumo({ data }: { data: { vencidos: number; criticos: number; risco: number; ok: number } }) {
   const chartData = [
     { name: 'Vencidos', value: data.vencidos },
     { name: 'Críticos', value: data.criticos },

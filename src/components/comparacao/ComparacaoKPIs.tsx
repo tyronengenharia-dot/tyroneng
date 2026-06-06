@@ -1,6 +1,8 @@
-export function ComparacaoKPIs({ data }: any) {
-  const totalReceitas = data.reduce((a: number, i: any) => a + i.receitas, 0)
-  const totalDespesas = data.reduce((a: number, i: any) => a + i.despesas, 0)
+import type { ComparacaoObra } from '@/types/comparacao'
+
+export function ComparacaoKPIs({ data }: { data: ComparacaoObra[] }) {
+  const totalReceitas = data.reduce((a, i) => a + i.receitas, 0)
+  const totalDespesas = data.reduce((a, i) => a + i.despesas, 0)
 
   const lucro = totalReceitas - totalDespesas
 
@@ -13,7 +15,7 @@ export function ComparacaoKPIs({ data }: any) {
   )
 }
 
-function Card({ title, value }: any) {
+function Card({ title, value }: { title: string; value: number }) {
   return (
     <div className="bg-[#111] p-5 rounded-2xl border border-white/10">
       <p className="text-gray-400 text-sm">{title}</p>

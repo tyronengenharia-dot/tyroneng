@@ -626,7 +626,15 @@ export function DiarioTab({ obra_id, obra_name = 'Obra' }: Props) {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [obra_id])
+  useEffect(() => {
+    let active = true
+    getDiariosByObra(obra_id).then(data => {
+      if (!active) return
+      setDiarios(data)
+      setLoading(false)
+    })
+    return () => { active = false }
+  }, [obra_id])
 
   async function handleDelete(id: string) {
     if (!confirm('Excluir este diário? Esta ação não pode ser desfeita.')) return

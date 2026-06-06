@@ -2,7 +2,19 @@
 
 import { useState } from 'react'
 
-export function MedicaoModal({ onClose, onSave }: any) {
+export type MedicaoFormData = {
+  description: string
+  percentage: number
+  value: number
+  date: string
+}
+
+type Props = {
+  onClose: () => void
+  onSave: (item: MedicaoFormData) => void
+}
+
+export function MedicaoModal({ onClose, onSave }: Props) {
   const [form, setForm] = useState({
     description: '',
     percentage: '',

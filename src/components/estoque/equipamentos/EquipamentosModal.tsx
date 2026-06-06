@@ -71,7 +71,7 @@ export function EquipamentosModal({ initial, onClose, onSuccess }: Props) {
 
         <Field label="Status">
           <select className={selectCls} value={form.status}
-            onChange={e => setForm({ ...form, status: e.target.value as any })}>
+            onChange={e => setForm({ ...form, status: e.target.value as Equipamento['status'] })}>
             <option value="disponivel">Disponível</option>
             <option value="em_uso">Em uso</option>
             <option value="manutencao">Manutenção</option>

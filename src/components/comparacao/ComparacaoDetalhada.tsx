@@ -1,11 +1,20 @@
-export function ComparacaoDetalhada({ obraA, obraB }: any) {
+import type { ComparacaoObra } from '@/types/comparacao'
+
+interface Props {
+  obraA: ComparacaoObra | null | undefined
+  obraB: ComparacaoObra | null | undefined
+}
+
+type MetricKey = 'receitas' | 'despesas' | 'lucro' | 'progresso'
+
+export function ComparacaoDetalhada({ obraA, obraB }: Props) {
   if (!obraA || !obraB) return null
 
-  function calcLucro(o: any) {
+  function calcLucro(o: ComparacaoObra) {
     return o.receitas - o.despesas
   }
 
-  const metrics = [
+  const metrics: { label: string; key: MetricKey }[] = [
     { label: 'Receita', key: 'receitas' },
     { label: 'Despesa', key: 'despesas' },
     { label: 'Lucro', key: 'lucro' },

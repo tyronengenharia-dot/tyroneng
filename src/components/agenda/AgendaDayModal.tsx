@@ -1,10 +1,23 @@
 'use client'
 
 import { useState } from 'react'
+import { Compromisso } from '@/types/agenda'
 import { AgendaModal } from './AgendaModal'
 
-export function AgendaDayModal({ date, eventos, onClose, onUpdate, userId }: any) {
-  const [editing, setEditing] = useState<any>(null)
+export function AgendaDayModal({
+  date,
+  eventos,
+  onClose,
+  onUpdate,
+  userId,
+}: {
+  date: string
+  eventos: Compromisso[]
+  onClose: () => void
+  onUpdate: (evento: Compromisso) => void
+  userId: string
+}) {
+  const [editing, setEditing] = useState<Compromisso | null>(null)
 
   return (
     <>
@@ -28,7 +41,7 @@ export function AgendaDayModal({ date, eventos, onClose, onUpdate, userId }: any
             </p>
           ) : (
             <div className="space-y-3">
-              {eventos.map((e: any) => (
+              {eventos.map((e) => (
                 <div
                   key={e.id}
                   onClick={() => setEditing(e)}
@@ -54,7 +67,7 @@ export function AgendaDayModal({ date, eventos, onClose, onUpdate, userId }: any
           userId={userId}
           initialData={editing}
           onClose={() => setEditing(null)}
-          onSaved={(eventoAtualizado: any) => {
+          onSaved={(eventoAtualizado: Compromisso) => {
             if (onUpdate) onUpdate(eventoAtualizado)
             setEditing(null)
           }}

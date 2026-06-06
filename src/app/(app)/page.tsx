@@ -552,7 +552,7 @@ export default function Dashboard() {
                   key={l.id}
                   label={l.titulo}
                   sub={l.orgao ?? (l.numero ? `#${l.numero}` : undefined)}
-                  right={<Pill label={s.label} type={s.cls.replace('pill-', '') as any} />}
+                  right={<Pill label={s.label} type={s.cls.replace('pill-', '') as 'red' | 'amber' | 'green' | 'blue' | 'gray'} />}
                 />
               )
             })
@@ -567,7 +567,7 @@ export default function Dashboard() {
                 key={d.id}
                 label={d.nome}
                 sub={`Vence em ${diasRestantes(d.vencimento)} dias`}
-                right={<Pill label={s.label} type={s.cls.replace('pill-', '') as any} />}
+                right={<Pill label={s.label} type={s.cls.replace('pill-', '') as 'red' | 'amber' | 'green' | 'blue' | 'gray'} />}
               />
             )
           })}

@@ -57,8 +57,8 @@ export default function DocumentCard({
     try {
       await deleteDocument(doc.id, doc.arquivoPath)
       onDelete?.(doc.id)
-    } catch (err: any) {
-      alert(err.message ?? 'Erro ao remover documento')
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Erro ao remover documento')
     } finally {
       setDeleting(false)
     }

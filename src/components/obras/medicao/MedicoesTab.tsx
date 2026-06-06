@@ -116,7 +116,15 @@ export function MedicoesTab({ obra_id, budget }: Props) {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [obra_id])
+  useEffect(() => {
+    let active = true
+    getMedicoesByObra(obra_id).then(result => {
+      if (!active) return
+      setData(result)
+      setLoading(false)
+    })
+    return () => { active = false }
+  }, [obra_id])
 
   async function handleDelete(id: string) {
     if (!confirm('Excluir esta medição?')) return

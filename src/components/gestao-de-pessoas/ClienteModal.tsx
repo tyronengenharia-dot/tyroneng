@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { Cliente } from '@/types/pessoa'
 import { ModalBase } from './shared/ModalBase'
@@ -15,22 +15,22 @@ interface Props {
 export function ClienteModal({ cliente, onClose, onSave }: Props) {
   const isEditing = !!cliente
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({
-    nome: '', tipo: 'pessoa_fisica', empresa: '', cnpj_cpf: '',
-    email: '', telefone: '', endereco: '', cidade: '', estado: '',
-    status: 'ativo', origem: '', observacoes: '',
-  })
-
-  useEffect(() => {
-    if (cliente) setForm({
-      nome: cliente.nome || '', tipo: cliente.tipo || 'pessoa_fisica',
-      empresa: cliente.empresa || '', cnpj_cpf: cliente.cnpj_cpf || '',
-      email: cliente.email || '', telefone: cliente.telefone || '',
-      endereco: cliente.endereco || '', cidade: cliente.cidade || '',
-      estado: cliente.estado || '', status: cliente.status || 'ativo',
-      origem: cliente.origem || '', observacoes: cliente.observacoes || '',
-    })
-  }, [cliente])
+  const [form, setForm] = useState(() =>
+    cliente
+      ? {
+          nome: cliente.nome || '', tipo: cliente.tipo || 'pessoa_fisica',
+          empresa: cliente.empresa || '', cnpj_cpf: cliente.cnpj_cpf || '',
+          email: cliente.email || '', telefone: cliente.telefone || '',
+          endereco: cliente.endereco || '', cidade: cliente.cidade || '',
+          estado: cliente.estado || '', status: cliente.status || 'ativo',
+          origem: cliente.origem || '', observacoes: cliente.observacoes || '',
+        }
+      : {
+          nome: '', tipo: 'pessoa_fisica', empresa: '', cnpj_cpf: '',
+          email: '', telefone: '', endereco: '', cidade: '', estado: '',
+          status: 'ativo', origem: '', observacoes: '',
+        }
+  )
 
   function set(key: string, value: string) { setForm(f => ({ ...f, [key]: value })) }
 

@@ -2,8 +2,17 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { Employee } from '@/types/employee'
 
-export function EmployeeCostsModal({ employee, onClose, onSaved }: any) {
+export function EmployeeCostsModal({
+  employee,
+  onClose,
+  onSaved,
+}: {
+  employee: Employee
+  onClose: () => void
+  onSaved: () => void
+}) {
   const [tab, setTab] = useState('encargos')
   const [saving, setSaving] = useState(false)
 

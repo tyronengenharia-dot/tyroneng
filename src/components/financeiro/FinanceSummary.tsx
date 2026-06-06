@@ -20,7 +20,7 @@ export function FinanceSummary({ data }: { data: FinancialRecord[] }) {
   )
 }
 
-function Card({ title, value }: any) {
+function Card({ title, value }: { title: string; value: number }) {
   return (
     <div className="bg-white p-5 rounded-2xl shadow-sm">
       <p className="text-gray-500 text-sm">{title}</p>

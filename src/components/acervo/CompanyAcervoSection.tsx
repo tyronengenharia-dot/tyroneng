@@ -33,8 +33,8 @@ export default function CompanyAcervoSection({
       const doc = await createDocument(formData, { type: 'company' })
       setDocs((prev) => [doc, ...prev])
       setShowModal(false)
-    } catch (err: any) {
-      alert(err.message ?? 'Erro ao salvar documento')
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Erro ao salvar documento')
     } finally {
       setSaving(false)
     }

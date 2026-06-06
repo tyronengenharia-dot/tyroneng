@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { getComparacao } from '@/services/comparacaoService'
+import { ComparacaoObra } from '@/types/comparacao'
 
 import { ComparacaoSelector } from '@/components/comparacao/ComparacaoSelector'
 import { ComparacaoDetalhada } from '@/components/comparacao/ComparacaoDetalhada'
 
 export default function ComparacaoPage() {
-  const [data, setData] = useState<any[]>([])
+  const [data, setData] = useState<ComparacaoObra[]>([])
   const [obraA, setObraA] = useState<string | null>(null)
   const [obraB, setObraB] = useState<string | null>(null)
 

@@ -44,7 +44,19 @@ export default function FuncionariosTab() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    let active = true
+    supabase
+      .from('funcionarios')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (!active) return
+        if (!error) setData(data || [])
+        setLoading(false)
+      })
+    return () => { active = false }
+  }, [])
 
   const filtered = data.filter(f => {
     const matchSearch = f.nome.toLowerCase().includes(search.toLowerCase()) ||

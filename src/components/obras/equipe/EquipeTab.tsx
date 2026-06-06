@@ -102,7 +102,15 @@ export function EquipeTab({ obra_id }: Props) {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [obra_id])
+  useEffect(() => {
+    let active = true
+    getMembrosByObra(obra_id).then(data => {
+      if (!active) return
+      setMembros(data)
+      setLoading(false)
+    })
+    return () => { active = false }
+  }, [obra_id])
 
   async function handleDelete(id: string) {
     if (!confirm('Remover este membro da obra?')) return

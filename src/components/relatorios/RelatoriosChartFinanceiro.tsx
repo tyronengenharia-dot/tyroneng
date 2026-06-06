@@ -7,8 +7,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
+import type { Relatorio } from '@/types/relatorio'
 
-export function RelatoriosChartFinanceiro({ data }: any) {
+export function RelatoriosChartFinanceiro({ data }: { data: Relatorio[] }) {
   return (
     <div className="bg-[#111] p-5 rounded-2xl border border-white/10 h-80">
       <h3 className="text-white mb-4">Fluxo financeiro</h3>

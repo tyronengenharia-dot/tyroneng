@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { FolhaTable } from '@/components/folha/FolhaTable'
+import { FolhaTable, FolhaItem } from '@/components/folha/FolhaTable'
 import { FolhaSummary } from '@/components/folha/FolhaSummary'
 import { FolhaAdjustModal } from '@/components/folha/FolhaAdjustModal'
 import jsPDF from 'jspdf'
@@ -25,10 +25,10 @@ const inputClass =
 
 export function FolhaTab() {
   const [month, setMonth] = useState(currentMonth())
-  const [folha, setFolha] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
+  const [folha, setFolha] = useState<FolhaItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [openAdjustModal, setOpenAdjustModal] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<any>(null)
+  const [selectedItem, setSelectedItem] = useState<FolhaItem | null>(null)
 
   async function fetchFolha() {
     setLoading(true)
@@ -107,7 +107,21 @@ export function FolhaTab() {
     doc.save(`folha-${month}.pdf`)
   }
 
-  useEffect(() => { fetchFolha() }, [month])
+  useEffect(() => {
+    let active = true
+    supabase
+      .from('folha_mensal')
+      .select(`*, funcionarios (nome)`)
+      .eq('mes', month)
+      .then(({ data, error }) => {
+        if (!active) return
+        if (!error) setFolha(data || [])
+        setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [month])
 
   const isFechado = folha.length > 0 && folha.every(i => i.fechado)
 
@@ -180,7 +194,7 @@ export function FolhaTab() {
           <div className="text-4xl mb-4">📋</div>
           <h2 className="text-base font-semibold text-white mb-2">Nenhuma folha gerada</h2>
           <p className="text-sm text-white/40 mb-6">
-            Clique em "Gerar folha" para criar a folha deste mês
+            Clique em &quot;Gerar folha&quot; para criar a folha deste mês
           </p>
           <button
             onClick={generateFolhaMensal}
@@ -193,7 +207,7 @@ export function FolhaTab() {
         <FolhaTable
           data={folha}
           onUpdate={fetchFolha}
-          onOpenAdjust={(item: any) => {
+          onOpenAdjust={(item: FolhaItem) => {
             setSelectedItem(item)
             setOpenAdjustModal(true)
           }}

@@ -20,8 +20,8 @@ export type ChecklistCategoria =
   | 'Outro'
 
 export interface ChecklistItem {
-  descricao: any
-  observacao: any
+  descricao?: string
+  observacao?: string
   id: string
   categoria: ChecklistCategoria
   nome: string

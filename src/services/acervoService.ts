@@ -11,7 +11,41 @@ import type {
 
 // ─── Mappers: DB (snake_case) → App (camelCase) ───────────────────────────────
 
-function mapDocumento(row: any): AcervoDocument {
+// Linhas cruas das tabelas Supabase (snake_case) consumidas pelos mappers.
+interface AcervoDocumentoRow {
+  id: string
+  nome: string
+  categoria: string
+  arquivo_url?: string | null
+  arquivo_tipo?: string | null
+  arquivo_tamanho_mb?: number | null
+  created_at?: string | null
+  data_validade?: string | null
+  status?: string | null
+  descricao?: string | null
+  tags?: string[] | null
+  dias_renovar?: number | null
+  orgao?: string | null
+  numero?: string | null
+  url_emissao?: string | null
+  arquivo_path?: string | null
+}
+
+interface ProfissionalRow {
+  id: string
+  nome: string
+  cargo: string
+  registro_numero: string
+  email?: string | null
+  telefone?: string | null
+  especialidades?: string[] | null
+  avatar_url?: string | null
+  ativo?: boolean | null
+  entrou_em?: string | null
+  acervo_documentos?: AcervoDocumentoRow[] | null
+}
+
+function mapDocumento(row: AcervoDocumentoRow): AcervoDocument {
   return {
     id: row.id,
     name: row.nome,
@@ -32,7 +66,7 @@ function mapDocumento(row: any): AcervoDocument {
   }
 }
 
-function mapProfissional(row: any): Professional {
+function mapProfissional(row: ProfissionalRow): Professional {
   const docs: AcervoDocument[] = (row.acervo_documentos ?? []).map(mapDocumento)
 
   let documentStatus: DocumentStatus = 'valid'

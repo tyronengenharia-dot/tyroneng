@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { getNotas } from '@/services/notaFiscalService'
 import { NotaFiscal } from '@/types/notaFiscal'
 
@@ -10,7 +10,6 @@ import { NotaModal } from '@/components/notas-fiscais/NotasModal'
 
 export default function NotasPage() {
   const [data, setData] = useState<NotaFiscal[]>([])
-  const [filtered, setFiltered] = useState<NotaFiscal[]>([])
   const [type, setType] = useState('todos')
   const [status, setStatus] = useState('todos')
   const [loading, setLoading] = useState(true)
@@ -20,14 +19,13 @@ export default function NotasPage() {
     async function fetch() {
       const result = await getNotas()
       setData(result)
-      setFiltered(result)
       setLoading(false)
     }
 
     fetch()
   }, [])
 
-  useEffect(() => {
+  const filtered = useMemo(() => {
     let result = [...data]
 
     if (type !== 'todos') {
@@ -38,7 +36,7 @@ export default function NotasPage() {
       result = result.filter(i => i.status === status)
     }
 
-    setFiltered(result)
+    return result
   }, [type, status, data])
 
   return (

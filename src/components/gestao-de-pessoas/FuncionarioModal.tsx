@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { Funcionario } from '@/types/pessoa'
 import { ModalBase } from './shared/ModalBase'
@@ -16,37 +16,35 @@ export function FuncionarioModal({ funcionario, onClose, onSave }: Props) {
   const isEditing = !!funcionario
   const [saving, setSaving] = useState(false)
 
-  const [form, setForm] = useState({
-    nome: '',
-    cargo: '',
-    departamento: '',
-    salario: '',
-    status: 'ativo',
-    email: '',
-    telefone: '',
-    cpf: '',
-    data_admissao: '',
-    data_nascimento: '',
-    endereco: '',
-  })
-
-  useEffect(() => {
-    if (funcionario) {
-      setForm({
-        nome: funcionario.nome || '',
-        cargo: funcionario.cargo || '',
-        departamento: funcionario.departamento || '',
-        salario: funcionario.salario?.toString() || '',
-        status: funcionario.status || 'ativo',
-        email: funcionario.email || '',
-        telefone: funcionario.telefone || '',
-        cpf: funcionario.cpf || '',
-        data_admissao: funcionario.data_admissao || '',
-        data_nascimento: funcionario.data_nascimento || '',
-        endereco: funcionario.endereco || '',
-      })
-    }
-  }, [funcionario])
+  const [form, setForm] = useState(() =>
+    funcionario
+      ? {
+          nome: funcionario.nome || '',
+          cargo: funcionario.cargo || '',
+          departamento: funcionario.departamento || '',
+          salario: funcionario.salario?.toString() || '',
+          status: funcionario.status || 'ativo',
+          email: funcionario.email || '',
+          telefone: funcionario.telefone || '',
+          cpf: funcionario.cpf || '',
+          data_admissao: funcionario.data_admissao || '',
+          data_nascimento: funcionario.data_nascimento || '',
+          endereco: funcionario.endereco || '',
+        }
+      : {
+          nome: '',
+          cargo: '',
+          departamento: '',
+          salario: '',
+          status: 'ativo',
+          email: '',
+          telefone: '',
+          cpf: '',
+          data_admissao: '',
+          data_nascimento: '',
+          endereco: '',
+        }
+  )
 
   function set(key: string, value: string) {
     setForm(f => ({ ...f, [key]: value }))

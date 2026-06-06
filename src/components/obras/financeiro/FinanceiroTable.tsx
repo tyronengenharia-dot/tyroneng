@@ -61,8 +61,8 @@ export function FinanceTable({ data, onEdit, onDelete }: Props) {
             >
               <td className="p-4">
                 <div className="font-medium text-white truncate">{item.description}</div>
-                {(item as any).category && (
-                  <div className="text-xs text-white/30 mt-0.5">{(item as any).category}</div>
+                {item.category && (
+                  <div className="text-xs text-white/30 mt-0.5">{item.category}</div>
                 )}
               </td>
 

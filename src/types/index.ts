@@ -70,7 +70,23 @@ export type Etapa = {
 
 // ─── PLANILHAS (VENDA / CUSTO PLAN / CUSTO REAL) ──────────────────────────────
 
-export type PlanilhaTipo = 'venda' | 'custo_planejado' | 'custo_real'
+export type PlanilhaTipo = 'venda' | 'custo_planejado' | 'custo_real' | 'aditivo'
+
+export type PlanilhaStatus =
+  | 'rascunho'
+  | 'aprovada'
+  | 'fechada'
+  | 'bloqueada'
+  | 'liberada'
+
+// Cabeçalho de uma planilha (instância por obra) — guarda o estado/bloqueio.
+export type PlanilhaHeader = {
+  id: string
+  obra_id?: string
+  tipo: PlanilhaTipo
+  aditivo_numero?: number | null
+  status: PlanilhaStatus
+}
 
 export type PlanilhaCategoria = {
   id: string
@@ -93,6 +109,10 @@ export type PlanilhaItem = {
   unidade: string
   valor_unitario: number
   ordem: number
+  // Origem do item (Regra 4): vínculo + snapshot. null = item legado (texto livre).
+  origem?: 'servico' | 'sinapi' | 'emop' | null
+  servico_id?: string | null
+  referencia_item_id?: string | null
   created_at?: string
 }
 

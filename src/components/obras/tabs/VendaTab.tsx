@@ -87,7 +87,7 @@ function updateItem(
   categoriaId: string,
   itemId: string,
   field: keyof Item,
-  value: any
+  value: string | number
 ) {
   setCategorias((prev) =>
     prev.map((cat) =>

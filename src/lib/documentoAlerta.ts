@@ -1,4 +1,9 @@
-export function getAlerta(doc: any) {
+interface DocumentoAlertaInput {
+  data_validade?: string | null
+  tempo_emissao_dias?: number | null
+}
+
+export function getAlerta(doc: DocumentoAlertaInput) {
   if (!doc.data_validade) return null
 
   const hoje = new Date()

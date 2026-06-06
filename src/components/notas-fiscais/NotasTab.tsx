@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { getNotas } from '@/services/notaFiscalService'
 import { NotaFiscal } from '@/types/notaFiscal'
 import { NotasMetrics } from '@/components/notas-fiscais/NotasMetrics'
@@ -10,7 +10,6 @@ import { NotaModal } from '@/components/notas-fiscais/NotasModal'
 
 export function NotasTab() {
   const [data, setData] = useState<NotaFiscal[]>([])
-  const [filtered, setFiltered] = useState<NotaFiscal[]>([])
   const [loading, setLoading] = useState(true)
   const [openModal, setOpenModal] = useState(false)
   const [editing, setEditing] = useState<NotaFiscal | null>(null)
@@ -26,14 +25,22 @@ export function NotasTab() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchData() }, [])
-
   useEffect(() => {
+    let active = true
+    getNotas().then(result => {
+      if (!active) return
+      setData(result)
+      setLoading(false)
+    })
+    return () => { active = false }
+  }, [])
+
+  const filtered = useMemo(() => {
     let result = [...data]
     if (search) result = result.filter(n => n.client.toLowerCase().includes(search.toLowerCase()) || n.number.toLowerCase().includes(search.toLowerCase()))
     if (type !== 'todos') result = result.filter(n => n.type === type)
     if (status !== 'todos') result = result.filter(n => n.status === status)
-    setFiltered(result)
+    return result
   }, [search, type, status, data])
 
   function handleSave(item: Omit<NotaFiscal, 'id'>) {

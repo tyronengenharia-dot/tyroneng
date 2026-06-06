@@ -1,6 +1,8 @@
 'use client'
 
-export function AgendaSemana({ eventos }: any) {
+import type { Compromisso } from '@/types/agenda'
+
+export function AgendaSemana({ eventos }: { eventos: Compromisso[] }) {
   return (
     <div className="bg-[#111] p-6 rounded-2xl space-y-4">
 
@@ -14,7 +16,7 @@ export function AgendaSemana({ eventos }: any) {
         </p>
       )}
 
-      {eventos.map((item: any) => {
+      {eventos.map((item) => {
         const data = new Date(item.data)
 
         return (

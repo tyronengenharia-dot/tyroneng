@@ -1,4 +1,12 @@
-export function MedicaoTable({ data }: any) {
+type MedicaoTableItem = {
+  id: string
+  description: string
+  percentage: number
+  value: number
+  date: string
+}
+
+export function MedicaoTable({ data }: { data: MedicaoTableItem[] }) {
   if (data.length === 0) {
     return (
       <div className="bg-[#111] p-10 rounded-2xl text-center">
@@ -20,7 +28,7 @@ export function MedicaoTable({ data }: any) {
         </thead>
 
         <tbody>
-          {data.map((item: any) => (
+          {data.map(item => (
             <tr key={item.id} className="border-t border-white/10">
               <td className="p-4 text-white">
                 {item.description}

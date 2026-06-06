@@ -84,7 +84,7 @@ export function MaquinarioModal({ initial, onClose, onSuccess }: Props) {
 
         <Field label="Status">
           <select className={selectCls} value={form.status}
-            onChange={e => setForm({ ...form, status: e.target.value as any })}>
+            onChange={e => setForm({ ...form, status: e.target.value as Maquinario['status'] })}>
             <option value="ativo">Ativo</option>
             <option value="em_uso">Em uso</option>
             <option value="manutencao">Manutenção</option>

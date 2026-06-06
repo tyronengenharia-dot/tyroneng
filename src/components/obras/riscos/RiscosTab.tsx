@@ -475,7 +475,15 @@ export function RiscosTab({ obra_id }: Props) {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [obra_id])
+  useEffect(() => {
+    let active = true
+    getRiscosByObra(obra_id).then(data => {
+      if (!active) return
+      setRiscos(data)
+      setLoading(false)
+    })
+    return () => { active = false }
+  }, [obra_id])
 
   async function handleDelete(id: string) {
     if (!confirm('Excluir este risco?')) return

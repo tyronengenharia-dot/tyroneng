@@ -20,7 +20,7 @@ export function FormField({ label, required, children, hint }: FormFieldProps) {
   )
 }
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+type InputProps = React.InputHTMLAttributes<HTMLInputElement>
 
 export function Input({ className = '', ...props }: InputProps) {
   return (
@@ -56,7 +56,7 @@ export function Select({ options, className = '', ...props }: SelectProps) {
   )
 }
 
-interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
+type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>
 
 export function Textarea({ className = '', ...props }: TextareaProps) {
   return (

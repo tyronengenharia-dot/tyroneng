@@ -65,7 +65,7 @@ export function EmptyState({ label }: { label: string }) {
         </svg>
       </div>
       <p className="text-gray-500 text-sm">Nenhum {label} encontrado</p>
-      <p className="text-gray-700 text-xs mt-1">Clique em "+ Novo" para adicionar</p>
+      <p className="text-gray-700 text-xs mt-1">Clique em &quot;+ Novo&quot; para adicionar</p>
     </div>
   )
 }

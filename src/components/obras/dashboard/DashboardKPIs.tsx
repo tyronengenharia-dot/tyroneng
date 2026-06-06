@@ -1,16 +1,24 @@
-export function DashboardKPIs({ financeiro, planejamento, medicao }: any) {
+import { Financeiro, Medicao, Etapa } from '@/types'
+
+type Props = {
+  financeiro: Financeiro[]
+  planejamento: Etapa[]
+  medicao: Medicao[]
+}
+
+export function DashboardKPIs({ financeiro, medicao }: Props) {
   const receitas = financeiro
-    .filter((i: any) => i.type === 'entrada')
-    .reduce((acc: number, i: any) => acc + i.value, 0)
+    .filter(i => i.type === 'entrada')
+    .reduce((acc, i) => acc + i.value, 0)
 
   const despesas = financeiro
-    .filter((i: any) => i.type === 'saida')
-    .reduce((acc: number, i: any) => acc + i.value, 0)
+    .filter(i => i.type === 'saida')
+    .reduce((acc, i) => acc + i.value, 0)
 
   const saldo = receitas - despesas
 
   const progresso = medicao.reduce(
-    (acc: number, i: any) => acc + i.percentage,
+    (acc, i) => acc + i.percentage,
     0
   )
 
@@ -24,7 +32,7 @@ export function DashboardKPIs({ financeiro, planejamento, medicao }: any) {
   )
 }
 
-function Card({ title, value }: any) {
+function Card({ title, value }: { title: string; value: number | string }) {
   return (
     <div className="bg-[#111] p-5 rounded-2xl border border-white/10">
       <p className="text-gray-400 text-sm">{title}</p>

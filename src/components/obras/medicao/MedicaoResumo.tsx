@@ -1,8 +1,10 @@
-export function MedicaoResumo({ data }: any) {
-  const total = data.reduce((acc: number, i: any) => acc + i.value, 0)
+type MedicaoResumoItem = { value: number; percentage: number }
+
+export function MedicaoResumo({ data }: { data: MedicaoResumoItem[] }) {
+  const total = data.reduce((acc, i) => acc + i.value, 0)
 
   const percentual = data.reduce(
-    (acc: number, i: any) => acc + i.percentage,
+    (acc, i) => acc + i.percentage,
     0
   )
 

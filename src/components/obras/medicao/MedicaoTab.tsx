@@ -4,11 +4,20 @@ import { useEffect, useState } from 'react'
 import { getMedicoesByObra } from '@/services/medicaoService'
 
 import { MedicaoTable } from './MedicaoTable'
-import { MedicaoModal } from './MedicaoModal'
+import { MedicaoModal, type MedicaoFormData } from './MedicaoModal'
 import { MedicaoResumo } from './MedicaoResumo'
 
-export function MedicaoTab({ obra_id }: any) {
-  const [data, setData] = useState<any[]>([])
+export type MedicaoItem = {
+  id: string
+  obra_id?: string
+  description: string
+  percentage: number
+  value: number
+  date: string
+}
+
+export function MedicaoTab({ obra_id }: { obra_id: string }) {
+  const [data, setData] = useState<MedicaoItem[]>([])
   const [openModal, setOpenModal] = useState(false)
 
   useEffect(() => {
@@ -43,7 +52,7 @@ export function MedicaoTab({ obra_id }: any) {
       {openModal && (
         <MedicaoModal
           onClose={() => setOpenModal(false)}
-          onSave={(item: any) =>
+          onSave={(item: MedicaoFormData) =>
             setData(prev => [
               ...prev,
               { ...item, id: Date.now().toString(), obra_id },

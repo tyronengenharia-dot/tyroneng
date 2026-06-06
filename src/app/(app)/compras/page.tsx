@@ -151,7 +151,34 @@ export default function ComprasPage() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { carregarDados() }, [carregarDados])
+  useEffect(() => {
+    let active = true
+
+    let algumErro = false
+    async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+      try { return await fn() }
+      catch (err) { algumErro = true; console.warn('[Compras] Falha na query:', err); return fallback }
+    }
+
+    Promise.all([
+      safe(getMetricasCompras, METRICAS_VAZIO),
+      safe(getSolicitacoes, [] as SolicitacaoCompra[]),
+      safe(getAllCotacoes, [] as CotacaoFornecedor[]),
+      safe(getPedidos, [] as PedidoCompra[]),
+      safe(getEntregas, [] as Entrega[]),
+      safe(() => getAuditoriaLogs(100), [] as AuditoriaLog[]),
+    ]).then(([m, s, c, p, e, l]) => {
+      if (!active) return
+      setMetricas(m); setSolicitacoes(s); setCotacoes(c)
+      setPedidos(p); setEntregas(e); setLogs(l)
+      setTemErroBanco(algumErro)
+      setLoading(false)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [])
 
     // Recarrega logs ao entrar na aba de auditoria
   useEffect(() => {

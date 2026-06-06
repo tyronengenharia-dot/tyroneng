@@ -1,3 +1,5 @@
+import { FolhaItem } from './FolhaTable'
+
 function fmtCurrency(value: number) {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -5,7 +7,7 @@ function fmtCurrency(value: number) {
   }).format(value || 0)
 }
 
-export function FolhaSummary({ data }: { data: any[] }) {
+export function FolhaSummary({ data }: { data: FolhaItem[] }) {
   const totalSalarios = data.reduce((acc, i) => acc + Number(i.salario_base || 0), 0)
   const totalExtras = data.reduce((acc, i) => acc + Number(i.extras || 0), 0)
   const totalAdicionais = data.reduce((acc, i) => acc + Number(i.adicional || 0), 0)

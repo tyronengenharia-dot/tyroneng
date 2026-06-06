@@ -47,7 +47,12 @@ const TABS = [
   },
 ]
 
-export function EstoqueTabs({ activeTab, setActiveTab }: any) {
+interface Props {
+  activeTab: string
+  setActiveTab: (tab: string) => void
+}
+
+export function EstoqueTabs({ activeTab, setActiveTab }: Props) {
   return (
     <div>
       {/* Tab bar */}

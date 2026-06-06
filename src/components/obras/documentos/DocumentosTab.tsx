@@ -104,7 +104,15 @@ export function DocumentosTab({ obra_id }: Props) {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [obra_id])
+  useEffect(() => {
+    let active = true
+    getDocumentosByObra(obra_id).then(data => {
+      if (!active) return
+      setDocs(data)
+      setLoading(false)
+    })
+    return () => { active = false }
+  }, [obra_id])
 
   async function handleDelete(id: string) {
     if (!confirm('Excluir este documento?')) return

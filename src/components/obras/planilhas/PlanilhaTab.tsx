@@ -13,9 +13,11 @@ import {
   deleteItem,
   calcTotalItens,
 } from '@/services/planilhaService'
-import { PlanilhaCategoria, PlanilhaItem, PlanilhaTipo } from '@/types'
+import { getPlanilhasStatus, planilhaEditavel } from '@/services/planilhaEstadoService'
+import { PlanilhaCategoria, PlanilhaItem, PlanilhaTipo, PlanilhaHeader } from '@/types'
 import { Btn, EmptyState, LoadingSpinner } from '@/components/ui'
 import { fmtCurrency, cn } from '@/lib/utils'
+import { PlanilhaEstadoBar } from './PlanilhaEstadoBar'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -48,6 +50,7 @@ function EditableCell({
   type = 'text',
   className = '',
   placeholder = '',
+  readOnly = false,
 }: {
   value: string | number
   onChange: (v: string) => void
@@ -55,18 +58,20 @@ function EditableCell({
   type?: 'text' | 'number'
   className?: string
   placeholder?: string
+  readOnly?: boolean
 }) {
   return (
     <input
       type={type}
       value={value}
+      readOnly={readOnly}
       onChange={e => onChange(e.target.value)}
       onBlur={onBlur}
       placeholder={placeholder}
       className={cn(
         'bg-transparent w-full text-sm text-white/70 placeholder:text-white/20',
-        'focus:outline-none focus:bg-white/5 rounded px-1 -mx-1 py-0.5',
-        'transition-colors',
+        'focus:outline-none rounded px-1 -mx-1 py-0.5 transition-colors',
+        readOnly ? 'cursor-default text-white/50' : 'focus:bg-white/5',
         className
       )}
     />
@@ -86,15 +91,36 @@ export function PlanilhaTab({
   extraTotalCells,
 }: Props) {
   const [categorias, setCategorias] = useState<CategoriaComItens[]>([])
+  const [headers, setHeaders]       = useState<PlanilhaHeader[]>([])
   const [loading, setLoading]       = useState(true)
-  const [saving, setSaving]         = useState<Record<string, boolean>>({})
+  const [, setSaving]               = useState<Record<string, boolean>>({})
+
+  // ── Estado / bloqueio ───────────────────────────────────────────────────────
+  const meuHeader = headers.find(h => h.tipo === tipo)
+  // Sem header (migration não aplicada) => modo legado, sempre editável.
+  const editavel = meuHeader ? planilhaEditavel(tipo, meuHeader.status) : true
+  const temEstado = headers.length > 0
+
+  function bannerBloqueio(): string | null {
+    if (editavel || !meuHeader) return null
+    if (tipo === 'custo_real' && meuHeader.status === 'bloqueada')
+      return 'Custo Real bloqueado. Aprove o Custo Planejado para liberar a edição.'
+    if (tipo === 'custo_planejado' && meuHeader.status === 'aprovada')
+      return 'Custo Planejado aprovado — somente leitura.'
+    if (tipo === 'venda' && meuHeader.status === 'fechada')
+      return 'Venda fechada — somente leitura.'
+    if (tipo === 'aditivo' && meuHeader.status === 'fechada')
+      return 'Aditivo fechado — somente leitura.'
+    return 'Planilha bloqueada — somente leitura.'
+  }
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
   const load = useCallback(async () => {
-    const [cats, itens] = await Promise.all([
+    const [cats, itens, hs] = await Promise.all([
       getCategoriasByObra(obra_id, tipo),
       getItensByObra(obra_id, tipo),
+      getPlanilhasStatus(obra_id),
     ])
     const merged: CategoriaComItens[] = cats.map(cat => ({
       ...cat,
@@ -102,10 +128,28 @@ export function PlanilhaTab({
       itens: itens.filter(i => i.categoria_id === cat.id),
     }))
     setCategorias(merged)
-    setLoading(false)
+    setHeaders(hs)
   }, [obra_id, tipo])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    let active = true
+    Promise.all([
+      getCategoriasByObra(obra_id, tipo),
+      getItensByObra(obra_id, tipo),
+      getPlanilhasStatus(obra_id),
+    ]).then(([cats, itens, hs]) => {
+      if (!active) return
+      const merged: CategoriaComItens[] = cats.map(cat => ({
+        ...cat,
+        collapsed: false,
+        itens: itens.filter(i => i.categoria_id === cat.id),
+      }))
+      setCategorias(merged)
+      setHeaders(hs)
+      setLoading(false)
+    })
+    return () => { active = false }
+  }, [obra_id, tipo])
 
   // ── Totals ────────────────────────────────────────────────────────────────
 
@@ -115,6 +159,7 @@ export function PlanilhaTab({
   // ── Category actions ──────────────────────────────────────────────────────
 
   async function handleAddCategoria() {
+    if (!editavel) return
     const nova: Omit<PlanilhaCategoria, 'id' | 'created_at'> = {
       obra_id,
       tipo,
@@ -126,17 +171,19 @@ export function PlanilhaTab({
     setCategorias(prev => [...prev, { ...created, itens: [], collapsed: false }])
   }
 
-  async function handleUpdateCategoriaNome(id: string, nome: string) {
+  function handleUpdateCategoriaNome(id: string, nome: string) {
     setCategorias(prev =>
       prev.map(c => c.id === id ? { ...c, nome } : c)
     )
   }
 
   async function handleSaveCategoriaNome(id: string, nome: string) {
+    if (!editavel) return
     await updateCategoria(id, { nome })
   }
 
   async function handleDeleteCategoria(id: string) {
+    if (!editavel) return
     if (!confirm('Excluir esta categoria e todos os seus itens?')) return
     await deleteCategoria(id)
     setCategorias(prev => prev.filter(c => c.id !== id))
@@ -152,6 +199,7 @@ export function PlanilhaTab({
   // ── Item actions ──────────────────────────────────────────────────────────
 
   async function handleAddItem(categoriaId: string) {
+    if (!editavel) return
     const cat = categorias.find(c => c.id === categoriaId)
     if (!cat) return
     const novoItem: Omit<PlanilhaItem, 'id' | 'created_at'> = {
@@ -194,7 +242,8 @@ export function PlanilhaTab({
     )
   }
 
-  async function handleSaveItem(categoriaId: string, item: PlanilhaItem) {
+  async function handleSaveItem(_categoriaId: string, item: PlanilhaItem) {
+    if (!editavel) return
     setSaving(prev => ({ ...prev, [item.id]: true }))
     await updateItem(item.id, {
       codigo:         item.codigo,
@@ -207,6 +256,7 @@ export function PlanilhaTab({
   }
 
   async function handleDeleteItem(categoriaId: string, itemId: string) {
+    if (!editavel) return
     await deleteItem(itemId)
     setCategorias(prev =>
       prev.map(c =>
@@ -223,218 +273,245 @@ export function PlanilhaTab({
 
   const BASE_HEADERS = ['Item', 'Código', 'Descrição', 'Qtd', 'Un.', 'Valor Unit.', 'Total']
   const allHeaders = [...BASE_HEADERS, ...extraHeaders, '']
+  const banner = bannerBloqueio()
 
   return (
-    <div className="bg-[#0d0d0d] border border-white/[0.08] rounded-2xl overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08]">
-        <div>
-          <p className="text-sm font-semibold text-white">{title}</p>
-          <p className="text-xs text-white/30 mt-0.5">{subtitle}</p>
+    <div className="space-y-3">
+      {/* Barra de estado / bloqueio (só aparece pós-migration) */}
+      {temEstado && (
+        <PlanilhaEstadoBar obra_id={obra_id} tipo={tipo} headers={headers} onChanged={load} />
+      )}
+
+      {banner && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
+          {banner}
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">Total Geral</p>
-            <p className="text-xl font-semibold font-mono text-green-400">{fmtCurrency(totalGeral)}</p>
+      )}
+
+      <div className="bg-[#0d0d0d] border border-white/[0.08] rounded-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08]">
+          <div>
+            <p className="text-sm font-semibold text-white">{title}</p>
+            <p className="text-xs text-white/30 mt-0.5">{subtitle}</p>
           </div>
-          <Btn variant="primary" onClick={handleAddCategoria}>+ Categoria</Btn>
-          <button className="px-3 py-1.5 text-xs font-medium bg-white/5 text-white/50 border border-white/10 rounded-xl hover:bg-white/10 transition-colors">
-            Exportar XLSX
-          </button>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">Total Geral</p>
+              <p className="text-xl font-semibold font-mono text-green-400">{fmtCurrency(totalGeral)}</p>
+            </div>
+            {editavel && <Btn variant="primary" onClick={handleAddCategoria}>+ Categoria</Btn>}
+            <button className="px-3 py-1.5 text-xs font-medium bg-white/5 text-white/50 border border-white/10 rounded-xl hover:bg-white/10 transition-colors">
+              Exportar XLSX
+            </button>
+          </div>
         </div>
-      </div>
 
-      {categorias.length === 0 ? (
-        <EmptyState message="Nenhuma categoria cadastrada. Clique em + Categoria para começar." />
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm" style={{ minWidth: 700 }}>
-            {/* Column headers */}
-            <thead className="border-b border-white/[0.08]">
-              <tr>
-                {allHeaders.map((h, i) => (
-                  <th
-                    key={i}
-                    className={cn(
-                      'px-3 py-2.5 text-[10px] font-semibold text-white/30 uppercase tracking-wider',
-                      ['Qtd', 'Valor Unit.', 'Total', ...extraHeaders].includes(h) ? 'text-right' : 'text-left'
-                    )}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
+        {categorias.length === 0 ? (
+          <EmptyState message="Nenhuma categoria cadastrada. Clique em + Categoria para começar." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" style={{ minWidth: 700 }}>
+              {/* Column headers */}
+              <thead className="border-b border-white/[0.08]">
+                <tr>
+                  {allHeaders.map((h, i) => (
+                    <th
+                      key={i}
+                      className={cn(
+                        'px-3 py-2.5 text-[10px] font-semibold text-white/30 uppercase tracking-wider',
+                        ['Qtd', 'Valor Unit.', 'Total', ...extraHeaders].includes(h) ? 'text-right' : 'text-left'
+                      )}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
 
-            <tbody>
-              {categorias.map((cat, catIdx) => {
-                const catTotal = calcTotalItens(cat.itens)
+              <tbody>
+                {categorias.map((cat, catIdx) => {
+                  const catTotal = calcTotalItens(cat.itens)
 
-                return (
-                  <React.Fragment key={cat.id}>
-                    {/* ── Category row ── */}
-                    <tr className="group bg-[#111] border-y border-white/[0.06] hover:bg-[#141414] transition-colors">
-                      <td colSpan={allHeaders.length} className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          {/* Toggle */}
-                          <button
-                            onClick={() => toggleCategoria(cat.id)}
-                            className="text-white/30 hover:text-white transition-colors text-xs w-4"
-                          >
-                            {cat.collapsed ? '▶' : '▼'}
-                          </button>
-
-                          {/* Number */}
-                          <span className="text-white/30 text-xs font-mono w-5">{catIdx + 1}.</span>
-
-                          {/* Name editable */}
-                          <input
-                            value={cat.nome}
-                            onChange={e => handleUpdateCategoriaNome(cat.id, e.target.value)}
-                            onBlur={e => handleSaveCategoriaNome(cat.id, e.target.value)}
-                            className="bg-transparent outline-none font-semibold text-sm text-white/80 flex-1 focus:bg-white/5 rounded px-1 -mx-1"
-                          />
-
-                          {/* Spacer */}
-                          <div className="flex-1 border-b border-dashed border-white/[0.06] mx-2" />
-
-                          {/* Cat total */}
-                          <span className="text-green-400 font-semibold font-mono text-sm">
-                            {fmtCurrency(catTotal)}
-                          </span>
-
-                          {/* Extra cat cells */}
-                          {extraCatCells?.(cat.itens)}
-
-                          {/* Delete */}
-                          <button
-                            onClick={() => handleDeleteCategoria(cat.id)}
-                            className="text-red-400/0 group-hover:text-red-400/60 hover:!text-red-400 transition-colors ml-2 text-xs"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-
-                    {/* ── Items ── */}
-                    {!cat.collapsed && cat.itens.map((item, itemIdx) => {
-                      const total = item.quantidade * item.valor_unitario
-                      return (
-                        <tr
-                          key={item.id}
-                          className="group border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
-                        >
-                          {/* Item number */}
-                          <td className="px-3 py-1.5 text-white/30 text-xs font-mono">
-                            {catIdx + 1}.{itemIdx + 1}
-                          </td>
-
-                          {/* Código */}
-                          <td className="px-3 py-1.5 w-24">
-                            <EditableCell
-                              value={item.codigo}
-                              placeholder="COD"
-                              onChange={v => handleUpdateItemLocal(cat.id, item.id, 'codigo', v)}
-                              onBlur={() => handleSaveItem(cat.id, item)}
-                            />
-                          </td>
-
-                          {/* Descrição */}
-                          <td className="px-3 py-1.5">
-                            <EditableCell
-                              value={item.descricao}
-                              placeholder="Descrição do item"
-                              onChange={v => handleUpdateItemLocal(cat.id, item.id, 'descricao', v)}
-                              onBlur={() => handleSaveItem(cat.id, item)}
-                            />
-                          </td>
-
-                          {/* Quantidade */}
-                          <td className="px-3 py-1.5 w-20">
-                            <EditableCell
-                              type="number"
-                              value={item.quantidade}
-                              className="text-right"
-                              onChange={v => handleUpdateItemLocal(cat.id, item.id, 'quantidade', Number(v))}
-                              onBlur={() => handleSaveItem(cat.id, item)}
-                            />
-                          </td>
-
-                          {/* Unidade */}
-                          <td className="px-3 py-1.5 w-16">
-                            <EditableCell
-                              value={item.unidade}
-                              placeholder="m²"
-                              onChange={v => handleUpdateItemLocal(cat.id, item.id, 'unidade', v)}
-                              onBlur={() => handleSaveItem(cat.id, item)}
-                            />
-                          </td>
-
-                          {/* Valor unitário */}
-                          <td className="px-3 py-1.5 w-28">
-                            <EditableCell
-                              type="number"
-                              value={item.valor_unitario}
-                              className="text-right"
-                              onChange={v => handleUpdateItemLocal(cat.id, item.id, 'valor_unitario', Number(v))}
-                              onBlur={() => handleSaveItem(cat.id, item)}
-                            />
-                          </td>
-
-                          {/* Total */}
-                          <td className="px-3 py-1.5 text-right font-mono text-green-400 text-sm w-28">
-                            {fmtCurrency(total)}
-                          </td>
-
-                          {/* Extra cells */}
-                          {extraCells?.(item, cat.itens)}
-
-                          {/* Delete */}
-                          <td className="px-3 py-1.5 w-8">
+                  return (
+                    <React.Fragment key={cat.id}>
+                      {/* ── Category row ── */}
+                      <tr className="group bg-[#111] border-y border-white/[0.06] hover:bg-[#141414] transition-colors">
+                        <td colSpan={allHeaders.length} className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            {/* Toggle */}
                             <button
-                              onClick={() => handleDeleteItem(cat.id, item.id)}
-                              className="text-red-400/0 group-hover:text-red-400/50 hover:!text-red-400 transition-colors text-xs"
+                              onClick={() => toggleCategoria(cat.id)}
+                              className="text-white/30 hover:text-white transition-colors text-xs w-4"
                             >
-                              ✕
+                              {cat.collapsed ? '▶' : '▼'}
+                            </button>
+
+                            {/* Number */}
+                            <span className="text-white/30 text-xs font-mono w-5">{catIdx + 1}.</span>
+
+                            {/* Name editable */}
+                            <input
+                              value={cat.nome}
+                              readOnly={!editavel}
+                              onChange={e => handleUpdateCategoriaNome(cat.id, e.target.value)}
+                              onBlur={e => handleSaveCategoriaNome(cat.id, e.target.value)}
+                              className={cn(
+                                'bg-transparent outline-none font-semibold text-sm text-white/80 flex-1 rounded px-1 -mx-1',
+                                editavel ? 'focus:bg-white/5' : 'cursor-default'
+                              )}
+                            />
+
+                            {/* Spacer */}
+                            <div className="flex-1 border-b border-dashed border-white/[0.06] mx-2" />
+
+                            {/* Cat total */}
+                            <span className="text-green-400 font-semibold font-mono text-sm">
+                              {fmtCurrency(catTotal)}
+                            </span>
+
+                            {/* Extra cat cells */}
+                            {extraCatCells?.(cat.itens)}
+
+                            {/* Delete */}
+                            {editavel && (
+                              <button
+                                onClick={() => handleDeleteCategoria(cat.id)}
+                                className="text-red-400/0 group-hover:text-red-400/60 hover:!text-red-400 transition-colors ml-2 text-xs"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* ── Items ── */}
+                      {!cat.collapsed && cat.itens.map((item, itemIdx) => {
+                        const total = item.quantidade * item.valor_unitario
+                        return (
+                          <tr
+                            key={item.id}
+                            className="group border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                          >
+                            {/* Item number */}
+                            <td className="px-3 py-1.5 text-white/30 text-xs font-mono">
+                              {catIdx + 1}.{itemIdx + 1}
+                            </td>
+
+                            {/* Código */}
+                            <td className="px-3 py-1.5 w-24">
+                              <EditableCell
+                                value={item.codigo}
+                                placeholder="COD"
+                                readOnly={!editavel}
+                                onChange={v => handleUpdateItemLocal(cat.id, item.id, 'codigo', v)}
+                                onBlur={() => handleSaveItem(cat.id, item)}
+                              />
+                            </td>
+
+                            {/* Descrição */}
+                            <td className="px-3 py-1.5">
+                              <EditableCell
+                                value={item.descricao}
+                                placeholder="Descrição do item"
+                                readOnly={!editavel}
+                                onChange={v => handleUpdateItemLocal(cat.id, item.id, 'descricao', v)}
+                                onBlur={() => handleSaveItem(cat.id, item)}
+                              />
+                            </td>
+
+                            {/* Quantidade */}
+                            <td className="px-3 py-1.5 w-20">
+                              <EditableCell
+                                type="number"
+                                value={item.quantidade}
+                                className="text-right"
+                                readOnly={!editavel}
+                                onChange={v => handleUpdateItemLocal(cat.id, item.id, 'quantidade', Number(v))}
+                                onBlur={() => handleSaveItem(cat.id, item)}
+                              />
+                            </td>
+
+                            {/* Unidade */}
+                            <td className="px-3 py-1.5 w-16">
+                              <EditableCell
+                                value={item.unidade}
+                                placeholder="m²"
+                                readOnly={!editavel}
+                                onChange={v => handleUpdateItemLocal(cat.id, item.id, 'unidade', v)}
+                                onBlur={() => handleSaveItem(cat.id, item)}
+                              />
+                            </td>
+
+                            {/* Valor unitário */}
+                            <td className="px-3 py-1.5 w-28">
+                              <EditableCell
+                                type="number"
+                                value={item.valor_unitario}
+                                className="text-right"
+                                readOnly={!editavel}
+                                onChange={v => handleUpdateItemLocal(cat.id, item.id, 'valor_unitario', Number(v))}
+                                onBlur={() => handleSaveItem(cat.id, item)}
+                              />
+                            </td>
+
+                            {/* Total */}
+                            <td className="px-3 py-1.5 text-right font-mono text-green-400 text-sm w-28">
+                              {fmtCurrency(total)}
+                            </td>
+
+                            {/* Extra cells */}
+                            {extraCells?.(item, cat.itens)}
+
+                            {/* Delete */}
+                            <td className="px-3 py-1.5 w-8">
+                              {editavel && (
+                                <button
+                                  onClick={() => handleDeleteItem(cat.id, item.id)}
+                                  className="text-red-400/0 group-hover:text-red-400/50 hover:!text-red-400 transition-colors text-xs"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+
+                      {/* ── Add item button ── */}
+                      {!cat.collapsed && editavel && (
+                        <tr>
+                          <td colSpan={allHeaders.length} className="px-3 py-1.5 border-b border-white/[0.04]">
+                            <button
+                              onClick={() => handleAddItem(cat.id)}
+                              className="text-xs text-blue-400/60 hover:text-blue-400 transition-colors"
+                            >
+                              + Adicionar item
                             </button>
                           </td>
                         </tr>
-                      )
-                    })}
+                      )}
+                    </React.Fragment>
+                  )
+                })}
 
-                    {/* ── Add item button ── */}
-                    {!cat.collapsed && (
-                      <tr>
-                        <td colSpan={allHeaders.length} className="px-3 py-1.5 border-b border-white/[0.04]">
-                          <button
-                            onClick={() => handleAddItem(cat.id)}
-                            className="text-xs text-blue-400/60 hover:text-blue-400 transition-colors"
-                          >
-                            + Adicionar item
-                          </button>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                )
-              })}
-
-              {/* ── Total row ── */}
-              <tr className="bg-[#111] border-t border-white/10">
-                <td colSpan={6} className="px-3 py-3 text-right text-xs font-semibold text-white/40 uppercase tracking-wider">
-                  Total Geral
-                </td>
-                <td className="px-3 py-3 text-right font-mono font-semibold text-green-400">
-                  {fmtCurrency(totalGeral)}
-                </td>
-                {extraTotalCells?.(allItens)}
-                <td />
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
+                {/* ── Total row ── */}
+                <tr className="bg-[#111] border-t border-white/10">
+                  <td colSpan={6} className="px-3 py-3 text-right text-xs font-semibold text-white/40 uppercase tracking-wider">
+                    Total Geral
+                  </td>
+                  <td className="px-3 py-3 text-right font-mono font-semibold text-green-400">
+                    {fmtCurrency(totalGeral)}
+                  </td>
+                  {extraTotalCells?.(allItens)}
+                  <td />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

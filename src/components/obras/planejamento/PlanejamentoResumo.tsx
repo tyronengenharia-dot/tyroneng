@@ -1,11 +1,13 @@
-export function PlanejamentoResumo({ data }: any) {
+type PlanejamentoResumoItem = { planned_value: number; actual_value: number }
+
+export function PlanejamentoResumo({ data }: { data: PlanejamentoResumoItem[] }) {
   const planned = data.reduce(
-    (acc: number, i: any) => acc + i.planned_value,
+    (acc, i) => acc + i.planned_value,
     0
   )
 
   const actual = data.reduce(
-    (acc: number, i: any) => acc + i.actual_value,
+    (acc, i) => acc + i.actual_value,
     0
   )
 
@@ -22,7 +24,7 @@ export function PlanejamentoResumo({ data }: any) {
   )
 }
 
-function Card({ title, value }: any) {
+function Card({ title, value }: { title: string; value: number | string }) {
   return (
     <div className="bg-[#111] p-5 rounded-2xl border border-white/10">
       <p className="text-gray-400 text-sm">{title}</p>

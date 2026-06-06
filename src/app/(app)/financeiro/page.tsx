@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   getFinancialRecords,
   deleteFinancialRecord,
@@ -75,7 +75,6 @@ export default function FinanceiroPage() {
   const [activeTab, setActiveTab] = useState<Tab>('transacoes')
 
   const [data, setData] = useState<FinancialRecord[]>([])
-  const [filtered, setFiltered] = useState<FinancialRecord[]>([])
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
@@ -84,6 +83,13 @@ export default function FinanceiroPage() {
   const [status, setStatus] = useState('todos')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+
+  // Reseta a paginação sempre que um filtro muda (substitui o efeito derivado)
+  function handleSearch(value: string) { setSearch(value); setPage(1) }
+  function handleType(value: string) { setType(value); setPage(1) }
+  function handleStatus(value: string) { setStatus(value); setPage(1) }
+  function handleStartDate(value: string) { setStartDate(value); setPage(1) }
+  function handleEndDate(value: string) { setEndDate(value); setPage(1) }
 
   const [openModal, setOpenModal] = useState(false)
   const [editing, setEditing] = useState<FinancialRecord | null>(null)
@@ -94,21 +100,30 @@ export default function FinanceiroPage() {
     setLoading(true)
     const { data: records } = await getFinancialRecords()
     setData(records)
-    setFiltered(records)
+    setPage(1)
     setLoading(false)
   }
 
-  useEffect(() => { fetchData() }, [])
-
   useEffect(() => {
+    let active = true
+    getFinancialRecords().then(({ data: records }) => {
+      if (!active) return
+      setData(records)
+      setLoading(false)
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const filtered = useMemo(() => {
     let result = [...data]
     if (search) result = result.filter(i => i.description.toLowerCase().includes(search.toLowerCase()))
     if (type !== 'todos') result = result.filter(i => i.type === type)
     if (status !== 'todos') result = result.filter(i => i.status === status)
     if (startDate) result = result.filter(i => i.date >= startDate)
     if (endDate) result = result.filter(i => i.date <= endDate)
-    setFiltered(result)
-    setPage(1)
+    return result
   }, [search, type, status, startDate, endDate, data])
 
   const totalPages = Math.ceil(filtered.length / limit)
@@ -184,7 +199,7 @@ export default function FinanceiroPage() {
                   type="text"
                   placeholder="Buscar transação..."
                   value={search}
-                  onChange={e => setSearch(e.target.value)}
+                  onChange={e => handleSearch(e.target.value)}
                   className={`${inputClass} pl-9 w-52`}
                 />
               </div>
@@ -193,7 +208,7 @@ export default function FinanceiroPage() {
                 {['todos', 'entrada', 'saida'].map(t => (
                   <button
                     key={t}
-                    onClick={() => setType(t)}
+                    onClick={() => handleType(t)}
                     className={`px-3.5 py-2 rounded-xl text-sm transition-colors ${
                       type === t
                         ? 'bg-white text-black font-medium'
@@ -208,16 +223,16 @@ export default function FinanceiroPage() {
 
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-2">
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputClass} />
+                <input type="date" value={startDate} onChange={e => handleStartDate(e.target.value)} className={inputClass} />
                 <span className="text-white/20 text-sm">→</span>
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className={inputClass} />
+                <input type="date" value={endDate} onChange={e => handleEndDate(e.target.value)} className={inputClass} />
               </div>
 
               <div className="flex gap-1">
                 {['todos', 'pago', 'pendente'].map(s => (
                   <button
                     key={s}
-                    onClick={() => setStatus(s)}
+                    onClick={() => handleStatus(s)}
                     className={`px-3.5 py-2 rounded-xl text-sm transition-colors ${
                       status === s
                         ? 'bg-white text-black font-medium'

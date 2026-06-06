@@ -1,4 +1,6 @@
-export function ComparacaoTable({ data }: any) {
+import type { ComparacaoObra } from '@/types/comparacao'
+
+export function ComparacaoTable({ data }: { data: ComparacaoObra[] }) {
   const sorted = [...data].sort(
     (a, b) =>
       (b.receitas - b.despesas) - (a.receitas - a.despesas)
@@ -18,7 +20,7 @@ export function ComparacaoTable({ data }: any) {
         </thead>
 
         <tbody>
-          {sorted.map((item: any) => {
+          {sorted.map((item) => {
             const lucro = item.receitas - item.despesas
 
             return (

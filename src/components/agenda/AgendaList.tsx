@@ -4,7 +4,15 @@ import { useState } from 'react'
 import { Compromisso } from '@/types/agenda'
 import { AgendaModal } from './AgendaModal'
 
-export function AgendaList({ data, onUpdate, onDelete }: any) {
+export function AgendaList({
+  data,
+  onUpdate,
+  onDelete,
+}: {
+  data: Compromisso[]
+  onUpdate: (item: Compromisso) => void
+  onDelete: (id: string) => void
+}) {
   const [editing, setEditing] = useState<Compromisso | null>(null)
 
   if (data.length === 0) {
@@ -16,7 +24,7 @@ export function AgendaList({ data, onUpdate, onDelete }: any) {
   }
 
   // 🔥 AGRUPAR POR DATA
-  const grouped = data.reduce((acc: any, item: Compromisso) => {
+  const grouped = data.reduce<Record<string, Compromisso[]>>((acc, item: Compromisso) => {
     if (!acc[item.date]) {
       acc[item.date] = []
     }

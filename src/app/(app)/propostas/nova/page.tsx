@@ -37,8 +37,8 @@ export default function NovaPropostaPage() {
       }
       router.push('/propostas')
       router.refresh()
-    } catch (e: any) {
-      setError(e.message ?? 'Erro ao salvar')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao salvar')
     } finally {
       setSaving(false)
     }

@@ -155,7 +155,15 @@ export function PlanejamentoTab({ obra_id }: Props) {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [obra_id])
+  useEffect(() => {
+    let active = true
+    getEtapasByObra(obra_id).then(data => {
+      if (!active) return
+      setEtapas(data)
+      setLoading(false)
+    })
+    return () => { active = false }
+  }, [obra_id])
 
   async function handleDelete(id: string) {
     if (!confirm('Excluir esta etapa?')) return

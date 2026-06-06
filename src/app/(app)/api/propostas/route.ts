@@ -10,8 +10,9 @@ export async function GET() {
   try {
     const propostas = await listarPropostas()
     return NextResponse.json(propostas)
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
@@ -48,7 +49,8 @@ export async function POST(req: NextRequest) {
 
     const criada = await criarProposta(proposta)
     return NextResponse.json(criada, { status: 201 })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

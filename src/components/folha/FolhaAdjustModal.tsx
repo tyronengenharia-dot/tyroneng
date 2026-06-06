@@ -2,8 +2,17 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { FolhaItem } from './FolhaTable'
 
-export function FolhaAdjustModal({ item, onClose, onSaved }: any) {
+export function FolhaAdjustModal({
+  item,
+  onClose,
+  onSaved,
+}: {
+  item: FolhaItem
+  onClose: () => void
+  onSaved: () => void
+}) {
   const [tipo, setTipo] = useState<'adicional' | 'desconto'>('adicional')
   const [valor, setValor] = useState('')
   const [obs, setObs] = useState('')
@@ -14,7 +23,7 @@ export function FolhaAdjustModal({ item, onClose, onSaved }: any) {
 
     const value = Number(valor)
 
-    const updateData: any = {
+    const updateData: { observacao: string; adicional?: number; desconto?: number } = {
       observacao: obs,
     }
 

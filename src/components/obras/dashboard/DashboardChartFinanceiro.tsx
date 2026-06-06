@@ -7,9 +7,10 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
+import { Financeiro } from '@/types'
 
-export function DashboardChartFinanceiro({ data }: any) {
-  const formatted = data.map((i: any) => ({
+export function DashboardChartFinanceiro({ data }: { data: Financeiro[] }) {
+  const formatted = data.map(i => ({
     date: i.date,
     value: i.type === 'entrada' ? i.value : -i.value,
   }))

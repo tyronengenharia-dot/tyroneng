@@ -1,6 +1,12 @@
 'use client'
 
-export function FolhaFilters({ month, setMonth }: any) {
+export function FolhaFilters({
+  month,
+  setMonth,
+}: {
+  month: string
+  setMonth: (month: string) => void
+}) {
   return (
     <input
       type="month"

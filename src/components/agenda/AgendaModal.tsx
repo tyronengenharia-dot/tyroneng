@@ -5,11 +5,17 @@ import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { createEvento, updateEvento, deleteEvento } from '@/services/agenda'
 import { supabase } from '@/lib/supabaseClient'
+import { Compromisso } from '@/types/agenda'
 
 // ─── tipos ────────────────────────────────────────────────────────────────────
 
 type ChecklistItem = { id: string; text: string; done: boolean }
 type PessoaRef = { id: string; nome: string; contato: string }
+
+// dados iniciais aceitos pelo modal (compromisso + campos legados opcionais)
+type AgendaModalInitialData = Partial<Compromisso> & {
+  clientes?: PessoaRef[] | string | null
+}
 
 type FormState = {
   titulo: string
@@ -79,7 +85,7 @@ function TipoSelect({
       .eq('user_id', userId)
       .order('created_at', { ascending: true })
       .then(({ data }) => {
-        if (data) setTiposExtras(data.map((d: any) => d.nome))
+        if (data) setTiposExtras(data.map((d: { nome: string }) => d.nome))
       })
   }, [userId])
 
@@ -607,7 +613,7 @@ function LocalAutocomplete({
               <>
                 {filtered.length > 0 && <div className="border-t border-white/5" />}
                 <div className="px-3 py-2.5">
-                  <p className="text-[11px] text-gray-500 mb-1.5">Salvar "{query.trim()}" como novo local</p>
+                  <p className="text-[11px] text-gray-500 mb-1.5">Salvar &quot;{query.trim()}&quot; como novo local</p>
                   <button
                     type="button"
                     onClick={salvarNovo}
@@ -811,7 +817,7 @@ function PessoasPicker({
               <>
                 {filtered.length > 0 && <div className="border-t border-white/5" />}
                 <div className="px-3 py-3 space-y-2">
-                  <p className="text-[11px] text-gray-500">Criar "{query.trim()}" como nova pessoa</p>
+                  <p className="text-[11px] text-gray-500">Criar &quot;{query.trim()}&quot; como nova pessoa</p>
                   <input
                     type="text"
                     value={novoContato}
@@ -847,7 +853,13 @@ export function AgendaModal({
   onSaved,
   onDeleted,
   initialData,
-}: any) {
+}: {
+  userId?: string
+  onClose: () => void
+  onSaved?: (evento: Compromisso) => void
+  onDeleted?: (id: string) => void
+  initialData?: AgendaModalInitialData
+}) {
   const isEdit = !!initialData?.id
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
   const [saving, setSaving] = useState(false)
@@ -903,7 +915,7 @@ export function AgendaModal({
         ? new Date(`${form.data}T${form.horaInicio || '00:00'}`)
         : new Date()
 
-      const payload: any = {
+      const payload = {
         titulo: form.titulo,
         tipo: form.tipo,
         status: form.status,
@@ -928,9 +940,9 @@ export function AgendaModal({
 
       if (onSaved) onSaved(result)
       onClose()
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
-      alert(err.message)
+      alert(err instanceof Error ? err.message : String(err))
     } finally {
       setSaving(false)
     }
@@ -944,9 +956,9 @@ export function AgendaModal({
       await deleteEvento(initialData.id)
       if (onDeleted) onDeleted(initialData.id)
       onClose()
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
-      alert(err.message)
+      alert(err instanceof Error ? err.message : String(err))
     } finally {
       setDeleting(false)
     }

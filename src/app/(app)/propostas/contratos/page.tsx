@@ -22,8 +22,8 @@ export default function ContratosPage() {
       setErro(null)
       const data = await getContratos()
       setContratos(data)
-    } catch (e: any) {
-      setErro(e.message)
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e))
     } finally {
       setLoading(false)
     }
@@ -40,8 +40,8 @@ export default function ContratosPage() {
         const novo = await criarContrato(data)
         setContratos(prev => [novo, ...prev])
       }
-    } catch (e: any) {
-      alert(`Erro ao salvar: ${e.message}`)
+    } catch (e) {
+      alert(`Erro ao salvar: ${e instanceof Error ? e.message : String(e)}`)
     }
     setEditTarget(undefined)
   }
@@ -51,8 +51,8 @@ export default function ContratosPage() {
     try {
       await excluirContrato(id)
       setContratos(prev => prev.filter(c => c.id !== id))
-    } catch (e: any) {
-      alert(`Erro ao excluir: ${e.message}`)
+    } catch (e) {
+      alert(`Erro ao excluir: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 

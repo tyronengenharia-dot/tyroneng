@@ -72,7 +72,7 @@ export function VeiculosModal({ initial, onClose, onSuccess }: Props) {
         <div className="col-span-2">
           <Field label="Status">
             <select className={selectCls} value={form.status}
-              onChange={e => setForm({ ...form, status: e.target.value as any })}>
+              onChange={e => setForm({ ...form, status: e.target.value as Veiculo['status'] })}>
               <option value="ativo">Ativo</option>
               <option value="manutencao">Manutenção</option>
               <option value="inativo">Inativo</option>

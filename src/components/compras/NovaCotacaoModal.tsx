@@ -115,7 +115,10 @@ function AutocompleteFornecedor({
 
   // Reseta busca quando seleção é limpa externamente
   useEffect(() => {
-    if (!fornecedorSelecionado) setBusca('')
+    if (fornecedorSelecionado) return
+    let active = true
+    Promise.resolve().then(() => { if (active) setBusca('') })
+    return () => { active = false }
   }, [fornecedorSelecionado])
 
   function selecionar(f: Fornecedor) {

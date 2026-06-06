@@ -25,7 +25,15 @@ export default function AutoridadesTab() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    let active = true
+    supabase.from('autoridades').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
+      if (!active) return
+      if (!error) setData(data || [])
+      setLoading(false)
+    })
+    return () => { active = false }
+  }, [])
 
   const filtered = data.filter(a =>
     a.nome.toLowerCase().includes(search.toLowerCase()) ||

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Licitacao, LicitacaoFormData } from '@/types/licitacao'
 import { MODALIDADES } from '@/lib/licitacaoUtils'
 
@@ -28,29 +28,25 @@ const empty: LicitacaoFormData = {
 }
 
 export function LicitacaoForm({ licitacao, saving = false, onSave, onClose }: Props) {
-  const [form, setForm] = useState<LicitacaoFormData>(empty)
-
-  useEffect(() => {
-    if (licitacao) {
-      setForm({
-        titulo:        licitacao.titulo,
-        orgao:         licitacao.orgao,
-        local:         licitacao.local,
-        valorEstimado: licitacao.valorEstimado,
-        dataEntrega:   licitacao.dataEntrega,
-        modalidade:    licitacao.modalidade,
-        processo:      licitacao.processo,
-        lote:          licitacao.lote,
-        plataforma:    licitacao.plataforma,
-        dataDisputa:   licitacao.dataDisputa,
-        horaDisputa:   licitacao.horaDisputa,
-        responsavel:   licitacao.responsavel,
-        observacoes:   licitacao.observacoes,
-      })
-    } else {
-      setForm(empty)
-    }
-  }, [licitacao])
+  const [form, setForm] = useState<LicitacaoFormData>(() =>
+    licitacao
+      ? {
+          titulo:        licitacao.titulo,
+          orgao:         licitacao.orgao,
+          local:         licitacao.local,
+          valorEstimado: licitacao.valorEstimado,
+          dataEntrega:   licitacao.dataEntrega,
+          modalidade:    licitacao.modalidade,
+          processo:      licitacao.processo,
+          lote:          licitacao.lote,
+          plataforma:    licitacao.plataforma,
+          dataDisputa:   licitacao.dataDisputa,
+          horaDisputa:   licitacao.horaDisputa,
+          responsavel:   licitacao.responsavel,
+          observacoes:   licitacao.observacoes,
+        }
+      : empty
+  )
 
   function set(key: keyof LicitacaoFormData, value: string | number) {
     setForm(prev => ({ ...prev, [key]: value }))

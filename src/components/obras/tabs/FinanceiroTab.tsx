@@ -14,7 +14,7 @@ export function FinanceiroTab() {
   )
 }
 
-function Card({ title, value }: any) {
+function Card({ title, value }: { title: string; value: number }) {
   return (
     <div className="bg-[#111] p-5 rounded-2xl border border-white/10">
       <p className="text-gray-400 text-sm">{title}</p>

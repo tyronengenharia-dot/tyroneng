@@ -133,7 +133,15 @@ export function FinanceiroTab({ obra_id }: Props) {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [obra_id])
+  useEffect(() => {
+    let active = true
+    getFinanceiroByObra(obra_id).then(result => {
+      if (!active) return
+      setData(result)
+      setLoading(false)
+    })
+    return () => { active = false }
+  }, [obra_id])
 
   const filtered = data.filter(i => {
     const tipoOk =

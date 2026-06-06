@@ -2,7 +2,18 @@
 
 import { useState } from 'react'
 
-export function PlanejamentoModal({ onClose, onSave }: any) {
+export type PlanejamentoFormData = {
+  category: string
+  planned_value: number
+  actual_value: number
+}
+
+type Props = {
+  onClose: () => void
+  onSave: (item: PlanejamentoFormData) => void
+}
+
+export function PlanejamentoModal({ onClose, onSave }: Props) {
   const [form, setForm] = useState({
     category: '',
     planned_value: '',

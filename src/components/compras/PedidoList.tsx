@@ -261,7 +261,7 @@ export function PedidoList({ data, onAutorizar, onRecusar, onVerDetalhes }: Prop
                 </div>
 
                 {p.observacoes && (
-                  <p className="mt-2 text-[11px] text-zinc-500 italic">"{p.observacoes}"</p>
+                  <p className="mt-2 text-[11px] text-zinc-500 italic">&quot;{p.observacoes}&quot;</p>
                 )}
 
                 {/* Ações */}

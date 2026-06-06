@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { getObraById } from '@/services/obraService'
 import { Obra } from '@/types'
@@ -41,34 +42,52 @@ export default function ObraPage() {
   const [custoPlano, setCustoPlano] = useState(0)
   const [custoReal, setCustoReal]   = useState(0)
 
-  const refreshTotais = useCallback(async () => {
-    if (!id) return
-    const [plano, real] = await Promise.all([
-      fetchTotalPlanilha(id, 'custo_planejado'),
-      fetchTotalPlanilha(id, 'custo_real'),
-    ])
-    setCustoPlano(plano)
-    setCustoReal(real)
-  }, [id])
-
   useEffect(() => {
     if (id === 'nova') { router.replace('/obras/nova'); return }
     if (!id) return
 
+    let active = true
+
     getObraById(id).then(data => {
+      if (!active) return
       setObra(data)
       setLoading(false)
     })
 
-    refreshTotais()
-  }, [id, router, refreshTotais])
+    Promise.all([
+      fetchTotalPlanilha(id, 'custo_planejado'),
+      fetchTotalPlanilha(id, 'custo_real'),
+    ]).then(([plano, real]) => {
+      if (!active) return
+      setCustoPlano(plano)
+      setCustoReal(real)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [id, router])
 
   // Recarrega os totais sempre que o usuário sair das abas de planilha
   useEffect(() => {
-    if (tab !== 'custo-real' && tab !== 'custo-planejado') {
-      refreshTotais()
+    if (!id) return
+    if (tab === 'custo-real' || tab === 'custo-planejado') return
+
+    let active = true
+
+    Promise.all([
+      fetchTotalPlanilha(id, 'custo_planejado'),
+      fetchTotalPlanilha(id, 'custo_real'),
+    ]).then(([plano, real]) => {
+      if (!active) return
+      setCustoPlano(plano)
+      setCustoReal(real)
+    })
+
+    return () => {
+      active = false
     }
-  }, [tab, refreshTotais])
+  }, [tab, id])
 
   if (loading || id === 'nova') {
     return (
@@ -82,12 +101,12 @@ export default function ObraPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
         <p className="text-white/40 text-sm">Obra não encontrada.</p>
-        <a
+        <Link
           href="/obras"
           className="px-4 py-2 text-sm font-medium bg-white/5 border border-white/10 text-white/50 rounded-xl hover:text-white hover:bg-white/10 transition-colors"
         >
           &larr; Voltar para obras
-        </a>
+        </Link>
       </div>
     )
   }

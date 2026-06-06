@@ -53,8 +53,8 @@ export default function ProfessionalCard({ professional: prof }: ProfessionalCar
       setShowDocModal(false)
       // garante que expande para mostrar o doc recém adicionado
       setExpanded(true)
-    } catch (err: any) {
-      alert(err.message ?? 'Erro ao salvar documento')
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Erro ao salvar documento')
     } finally {
       setSaving(false)
     }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { Autoridade } from '@/types/pessoa'
 import { ModalBase } from './shared/ModalBase'
@@ -15,20 +15,20 @@ interface Props {
 export function AutoridadeModal({ autoridade, onClose, onSave }: Props) {
   const isEditing = !!autoridade
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({
-    nome: '', orgao: '', cargo: '', jurisdicao: '',
-    telefone: '', email: '', endereco: '', status: 'ativo', observacoes: '',
-  })
-
-  useEffect(() => {
-    if (autoridade) setForm({
-      nome: autoridade.nome || '', orgao: autoridade.orgao || '',
-      cargo: autoridade.cargo || '', jurisdicao: autoridade.jurisdicao || '',
-      telefone: autoridade.telefone || '', email: autoridade.email || '',
-      endereco: autoridade.endereco || '', status: autoridade.status || 'ativo',
-      observacoes: autoridade.observacoes || '',
-    })
-  }, [autoridade])
+  const [form, setForm] = useState(() =>
+    autoridade
+      ? {
+          nome: autoridade.nome || '', orgao: autoridade.orgao || '',
+          cargo: autoridade.cargo || '', jurisdicao: autoridade.jurisdicao || '',
+          telefone: autoridade.telefone || '', email: autoridade.email || '',
+          endereco: autoridade.endereco || '', status: autoridade.status || 'ativo',
+          observacoes: autoridade.observacoes || '',
+        }
+      : {
+          nome: '', orgao: '', cargo: '', jurisdicao: '',
+          telefone: '', email: '', endereco: '', status: 'ativo', observacoes: '',
+        }
+  )
 
   function set(key: string, value: string) { setForm(f => ({ ...f, [key]: value })) }
 

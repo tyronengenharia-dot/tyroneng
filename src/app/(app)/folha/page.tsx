@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
-import { FolhaTable } from '@/components/folha/FolhaTable'
+import { FolhaTable, FolhaItem } from '@/components/folha/FolhaTable'
 import { FolhaSummary } from '@/components/folha/FolhaSummary'
 import { FolhaFilters } from '@/components/folha/FolhaFilters'
 import { FolhaAdjustModal } from '@/components/folha/FolhaAdjustModal'
@@ -11,28 +11,11 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
 export default function FolhaPage() {
-  const [employees, setEmployees] = useState<any[]>([])
+  const [employees, setEmployees] = useState<FolhaItem[]>([])
   const [month, setMonth] = useState('2026-03')
   const [loading, setLoading] = useState(true)
   const [openAdjustModal, setOpenAdjustModal] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<any>(null)
-
-  async function fetchEmployees() {
-    setLoading(true)
-
-    const { data, error } = await supabase
-      .from('funcionarios')
-      .select('*')
-      .eq('status', 'ativo')
-
-    if (error) {
-      console.error(error)
-      return
-    }
-
-    setEmployees(data || [])
-    setLoading(false)
-  }
+  const [selectedItem, setSelectedItem] = useState<FolhaItem | null>(null)
 
 async function generateFolhaMensal() {
   const { data: existing } = await supabase
@@ -68,7 +51,7 @@ async function generateFolhaMensal() {
   fetchFolha()
 }
 
-const [folha, setFolha] = useState<any[]>([])
+const [folha, setFolha] = useState<FolhaItem[]>([])
 
 async function fetchFolha() {
   const { data, error } = await supabase
@@ -103,13 +86,28 @@ useEffect(() => {
 }, [month])
 
   useEffect(() => {
-    fetchEmployees()
-    
+    let active = true
+    supabase
+      .from('funcionarios')
+      .select('*')
+      .eq('status', 'ativo')
+      .then(({ data, error }) => {
+        if (!active) return
+        if (error) {
+          console.error(error)
+          return
+        }
+        setEmployees(data || [])
+        setLoading(false)
+      })
+    return () => {
+      active = false
+    }
   }, [])
 
   const filtered = employees
 
-  function exportPDF(data: any[]) {
+  function exportPDF(data: FolhaItem[]) {
   const doc = new jsPDF()
 
   autoTable(doc, {
@@ -179,7 +177,7 @@ useEffect(() => {
           <FolhaTable
               data={folha}
               onUpdate={fetchFolha}
-              onOpenAdjust={(item: any) => {
+              onOpenAdjust={(item: FolhaItem) => {
                 setSelectedItem(item)
                 setOpenAdjustModal(true)
               }}

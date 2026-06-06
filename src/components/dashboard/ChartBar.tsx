@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
-export function ChartBar({ data }: any) {
+export function ChartBar({ data }: { data: { vencidos: number; criticos: number; risco: number; ok: number } }) {
   const chartData = [
     { name: 'Vencidos', valor: data.vencidos },
     { name: 'Críticos', valor: data.criticos },

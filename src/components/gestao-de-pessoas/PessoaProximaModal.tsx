@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { PessoaProxima } from '@/types/pessoa'
 import { ModalBase } from './shared/ModalBase'
@@ -15,21 +15,21 @@ interface Props {
 export function PessoaProximaModal({ pessoa, onClose, onSave }: Props) {
   const isEditing = !!pessoa
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({
-    nome: '', relacao: '', empresa: '', cargo: '',
-    telefone: '', email: '', area: '',
-    como_conheceu: '', status: 'ativo', observacoes: '',
-  })
-
-  useEffect(() => {
-    if (pessoa) setForm({
-      nome: pessoa.nome || '', relacao: pessoa.relacao || '',
-      empresa: pessoa.empresa || '', cargo: pessoa.cargo || '',
-      telefone: pessoa.telefone || '', email: pessoa.email || '',
-      area: pessoa.area || '', como_conheceu: pessoa.como_conheceu || '',
-      status: pessoa.status || 'ativo', observacoes: pessoa.observacoes || '',
-    })
-  }, [pessoa])
+  const [form, setForm] = useState(() =>
+    pessoa
+      ? {
+          nome: pessoa.nome || '', relacao: pessoa.relacao || '',
+          empresa: pessoa.empresa || '', cargo: pessoa.cargo || '',
+          telefone: pessoa.telefone || '', email: pessoa.email || '',
+          area: pessoa.area || '', como_conheceu: pessoa.como_conheceu || '',
+          status: pessoa.status || 'ativo', observacoes: pessoa.observacoes || '',
+        }
+      : {
+          nome: '', relacao: '', empresa: '', cargo: '',
+          telefone: '', email: '', area: '',
+          como_conheceu: '', status: 'ativo', observacoes: '',
+        }
+  )
 
   function set(key: string, value: string) { setForm(f => ({ ...f, [key]: value })) }
 

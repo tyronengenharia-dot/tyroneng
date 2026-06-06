@@ -7,9 +7,10 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
+import type { FinancialRecord } from '@/types/financial'
 
-export function FinanceChart({ data }: any) {
-  const grouped = data.map((item: { date: any; type: string; value: number }) => ({
+export function FinanceChart({ data }: { data: FinancialRecord[] }) {
+  const grouped = data.map((item) => ({
     date: item.date,
     value: item.type === 'entrada' ? item.value : -item.value,
   }))

@@ -14,7 +14,7 @@ export async function getDocumentos(userId: string) {
   return data
 }
 
-export async function createDocumento(payload: any) {
+export async function createDocumento(payload: Record<string, unknown>) {
   const { data, error } = await supabase
     .from('documentos')
     .insert(payload)
@@ -30,7 +30,7 @@ export async function createDocumento(payload: any) {
 }
 
 // 🔥 CORRIGIDO (SEM user_id no filtro)
-export async function updateDocumento(id: string, payload: any) {
+export async function updateDocumento(id: string, payload: Record<string, unknown>) {
   const { data, error } = await supabase
     .from('documentos')
     .update(payload)

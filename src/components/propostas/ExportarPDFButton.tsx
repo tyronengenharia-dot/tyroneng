@@ -28,7 +28,11 @@ async function loadImageAsBase64(path: string): Promise<string> {
   })
 }
 
-function splitText(doc: any, text: string, maxWidth: number): string[] {
+function splitText(
+  doc: { splitTextToSize: (text: string, maxWidth: number) => string[] },
+  text: string,
+  maxWidth: number,
+): string[] {
   return doc.splitTextToSize(text, maxWidth)
 }
 
@@ -556,9 +560,9 @@ export function ExportarPDFButton({ proposta, variant = 'panel' }: Props) {
       // ── Salva ──
       doc.save(`Proposta_${proposta.numero}_${proposta.cliente.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`)
 
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e)
-      setError(e?.message ?? 'Erro ao gerar PDF')
+      setError(e instanceof Error ? e.message : 'Erro ao gerar PDF')
     } finally {
       setLoading(false)
     }

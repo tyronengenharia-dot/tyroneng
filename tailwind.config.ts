@@ -1,5 +1,6 @@
-/** @type {import('tailwindcss').Config} */
-module.exports = {
+import scrollbarHide from 'tailwind-scrollbar-hide'
+
+const config = {
   content: [
     './src/app/**/*.{js,ts,jsx,tsx}',
     './src/components/**/*.{js,ts,jsx,tsx}',
@@ -7,5 +8,7 @@ module.exports = {
   theme: {
     extend: {},
   },
-  plugins: [require('tailwind-scrollbar-hide')],
+  plugins: [scrollbarHide],
 }
+
+export default config

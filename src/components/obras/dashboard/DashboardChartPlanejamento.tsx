@@ -8,7 +8,13 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
-export function DashboardChartPlanejamento({ data }: any) {
+type PlanejamentoChartDatum = {
+  category: string
+  planned_value: number
+  actual_value: number
+}
+
+export function DashboardChartPlanejamento({ data }: { data: PlanejamentoChartDatum[] }) {
   return (
     <div className="bg-[#111] p-5 rounded-2xl border border-white/10 h-80">
       <h3 className="text-white mb-4">Orçado vs Realizado</h3>

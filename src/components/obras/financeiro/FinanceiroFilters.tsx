@@ -1,11 +1,18 @@
 'use client'
 
+type Props = {
+  type: string
+  setType: (type: string) => void
+  status: string
+  setStatus: (status: string) => void
+}
+
 export function FinanceiroFilters({
   type,
   setType,
   status,
   setStatus,
-}: any) {
+}: Props) {
   return (
     <div className="flex gap-2">
       {['todos', 'entrada', 'saida'].map(t => (

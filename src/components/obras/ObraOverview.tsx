@@ -1,4 +1,6 @@
-export function ObraOverview({ obra }: any) {
+import { Obra } from '@/types'
+
+export function ObraOverview({ obra }: { obra: Obra }) {
   return (
     <div className="grid grid-cols-3 gap-4">
       <Card title="Orçamento" value={`R$ ${obra.budget}`} />
@@ -8,7 +10,7 @@ export function ObraOverview({ obra }: any) {
   )
 }
 
-function Card({ title, value }: any) {
+function Card({ title, value }: { title: string; value: string }) {
   return (
     <div className="bg-[#111] p-5 rounded-2xl border border-white/10">
       <p className="text-gray-400 text-sm">{title}</p>
