@@ -15,6 +15,7 @@ import { PlanejamentoTab }  from '@/components/obras/planejamento/PlanejamentoTa
 import { MedicoesTab }      from '@/components/obras/medicao/MedicoesTab'
 import { VendaTab, CustoPlanejadoTab, CustoRealTab } from '@/components/obras/planilhas/PlanilhaWrappers'
 import { AditivosTab }      from '@/components/obras/planilhas/AditivosTab'
+import { MemoriaCalculoTab } from '@/components/obras/memoria/MemoriaCalculoTab'
 import { EquipeTab }        from '@/components/obras/equipe/EquipeTab'
 import { DocumentosTab }    from '@/components/obras/documentos/DocumentosTab'
 import { DiarioTab }        from '@/components/obras/diario/DiarioTab'
@@ -130,6 +131,7 @@ export default function ObraPage() {
         {tab === 'custo-planejado' && <CustoPlanejadoTab obra_id={id} />}
         {tab === 'custo-real'      && <CustoRealTab      obra_id={id} />}
         {tab === 'aditivos'        && <AditivosTab        obra_id={id} />}
+        {tab === 'memoria'         && <MemoriaCalculoTab  obra_id={id} />}
         {tab === 'equipe'          && <EquipeTab          obra_id={id} />}
         {tab === 'documentos'      && <DocumentosTab      obra_id={id} />}
         {tab === 'diario'          && <DiarioTab          obra_id={id} obra_name={obra.name} />}
