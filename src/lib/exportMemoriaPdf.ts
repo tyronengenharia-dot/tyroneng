@@ -22,8 +22,13 @@ export type MemoriaPdfCategoria = {
   itens: MemoriaPdfItem[]
 }
 
+export type MemoriaPdfMode = 'completa' | 'divergencias'
+
 const fmtQtd = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 4 })
 const bateQtd = (a: number, b: number) => Math.abs(a - b) < 0.0001
+const totalLinhas = (it: MemoriaPdfItem) => it.linhas.reduce((s, l) => s + (l.quantidade || 0), 0)
+const diverge = (it: MemoriaPdfItem) =>
+  it.linhas.length > 0 && !bateQtd(totalLinhas(it), it.quantidadePlanilha)
 
 // Paleta print-friendly (fundo claro, texto escuro)
 const HEAD_FILL: [number, number, number] = [24, 24, 24]
@@ -37,8 +42,17 @@ export function exportMemoriaPdf(opts: {
   obra: ObraInfo
   planilhaLabel: string
   categorias: MemoriaPdfCategoria[]
+  mode: MemoriaPdfMode
 }) {
-  const { obra, planilhaLabel, categorias } = opts
+  const { obra, planilhaLabel, categorias, mode } = opts
+
+  // Em "Só divergências", mantém apenas itens cuja memória não bate com a planilha.
+  const cats =
+    mode === 'divergencias'
+      ? categorias
+          .map(c => ({ ...c, itens: c.itens.filter(diverge) }))
+          .filter(c => c.itens.length > 0)
+      : categorias
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = 210
@@ -64,11 +78,12 @@ export function exportMemoriaPdf(opts: {
     doc.setTextColor(150, 150, 150)
     doc.text(`Emitido em ${new Date().toLocaleDateString('pt-BR')}`, W - M, 15, { align: 'right' })
     doc.text(`Planilha: ${planilhaLabel}`, W - M, 20, { align: 'right' })
+    doc.text(mode === 'divergencias' ? 'Somente divergências' : 'Memória completa', W - M, 24.5, { align: 'right' })
   }
 
   const body: RowInput[] = []
 
-  categorias.forEach((cat, ci) => {
+  cats.forEach((cat, ci) => {
     // Linha da categoria
     body.push([
       {
@@ -169,5 +184,6 @@ export function exportMemoriaPdf(opts: {
       .join('')
       .replace(/[^a-zA-Z0-9]+/g, '_')
       .replace(/^_|_$/g, '')
-  doc.save(`Memoria_de_Calculo_${slug(obra.name)}_${slug(planilhaLabel)}.pdf`)
+  const sufixo = mode === 'divergencias' ? 'divergencias' : 'completa'
+  doc.save(`Memoria_de_Calculo_${slug(obra.name)}_${slug(planilhaLabel)}_${sufixo}.pdf`)
 }

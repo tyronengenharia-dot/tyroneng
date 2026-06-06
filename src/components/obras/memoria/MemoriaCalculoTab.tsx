@@ -15,7 +15,7 @@ import {
   deleteMemoria,
 } from '@/services/memoriaService'
 import { avaliarFormula } from '@/lib/avaliarFormula'
-import { exportMemoriaPdf, MemoriaPdfCategoria } from '@/lib/exportMemoriaPdf'
+import { exportMemoriaPdf, MemoriaPdfCategoria, MemoriaPdfMode } from '@/lib/exportMemoriaPdf'
 import { Btn, EmptyState, LoadingSpinner } from '@/components/ui'
 
 const planilhaOpcoes: { value: PlanilhaTipo; label: string }[] = [
@@ -200,6 +200,7 @@ export function MemoriaCalculoTab({ obra_id }: { obra_id: string }) {
   const [headers,    setHeaders]    = useState<PlanilhaHeader[]>([])
   const [loading,    setLoading]    = useState(true)
   const [exporting,  setExporting]  = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
 
   // Categorias colapsadas; itens com memória aberta (múltiplos simultâneos)
   const [catColapsadas, setCatColapsadas] = useState<Set<string>>(new Set())
@@ -322,9 +323,14 @@ export function MemoriaCalculoTab({ obra_id }: { obra_id: string }) {
     })),
   })
 
-  async function handleExportPdf() {
+  async function handleExportPdf(mode: MemoriaPdfMode) {
+    setExportOpen(false)
     if (categorias.length === 0 && itens.length === 0) {
       toast.error('Nada para exportar — sem itens.')
+      return
+    }
+    if (mode === 'divergencias' && pendentes === 0) {
+      toast('Nenhuma divergência nesta planilha.')
       return
     }
     setExporting(true)
@@ -345,6 +351,7 @@ export function MemoriaCalculoTab({ obra_id }: { obra_id: string }) {
         obra: { name: obra?.name ?? 'Obra', client: obra?.client, location: obra?.location },
         planilhaLabel: planilhaOpcoes.find(o => o.value === tipo)?.label ?? '',
         categorias: cats,
+        mode,
       })
     } catch (e) {
       console.error('export memoria pdf error:', e)
@@ -394,13 +401,49 @@ export function MemoriaCalculoTab({ obra_id }: { obra_id: string }) {
               </button>
             ))}
           </div>
-          <button
-            onClick={handleExportPdf}
-            disabled={exporting || vazio}
-            className="px-3 py-1.5 text-xs font-medium bg-white/5 text-white/50 border border-white/10 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {exporting ? 'Gerando…' : 'Exportar PDF'}
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setExportOpen(o => !o)}
+              disabled={exporting || vazio}
+              className="px-3 py-1.5 text-xs font-medium bg-white/5 text-white/50 border border-white/10 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              {exporting ? 'Gerando…' : 'Exportar PDF'}
+              <span className="text-[9px]">▾</span>
+            </button>
+
+            {exportOpen && (
+              <>
+                <button
+                  className="fixed inset-0 z-40 cursor-default"
+                  onClick={() => setExportOpen(false)}
+                  aria-hidden
+                />
+                <div className="absolute right-0 mt-1.5 z-50 w-64 bg-[#161616] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+                  <button
+                    onClick={() => handleExportPdf('completa')}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-white/[0.04] transition-colors"
+                  >
+                    <span className="block text-xs font-medium text-white/85">Completa</span>
+                    <span className="block text-[11px] text-white/35 mt-0.5">Todos os itens e suas linhas</span>
+                  </button>
+                  <button
+                    onClick={() => handleExportPdf('divergencias')}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-white/[0.04] transition-colors border-t border-white/[0.06]"
+                  >
+                    <span className="block text-xs font-medium text-white/85">
+                      Só divergências
+                      {pendentes > 0 && (
+                        <span className="ml-1.5 text-[10px] font-medium px-1 py-0.5 rounded bg-amber-500/15 text-amber-400">
+                          {pendentes}
+                        </span>
+                      )}
+                    </span>
+                    <span className="block text-[11px] text-white/35 mt-0.5">Apenas itens cuja memória não bate</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

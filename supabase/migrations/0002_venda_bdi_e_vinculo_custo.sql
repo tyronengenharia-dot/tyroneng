@@ -21,7 +21,14 @@ create table if not exists venda_bdi (
   despesas_financeiras numeric(8,4) not null default 0,  -- Despesas financeiras
   updated_at           timestamptz not null default now()
 );
-alter table venda_bdi disable row level security;
+-- O Supabase religa RLS em tabelas novas do schema public; em vez de lutar
+-- contra isso, mantemos RLS ligado e abrimos com policy permissiva (o app usa
+-- a anon key sem auth por usuário, como o resto do sistema).
+alter table venda_bdi enable row level security;
+drop policy if exists venda_bdi_anon_all on venda_bdi;
+create policy venda_bdi_anon_all on venda_bdi
+  for all to anon, authenticated
+  using (true) with check (true);
 grant all on venda_bdi to anon, authenticated, service_role;
 
 drop trigger if exists trg_venda_bdi_updated on venda_bdi;
