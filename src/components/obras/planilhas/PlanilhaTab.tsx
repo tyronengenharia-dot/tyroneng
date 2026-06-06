@@ -12,10 +12,11 @@ import {
   updateItem,
   deleteItem,
   calcTotalItens,
+  importarCustoParaVenda,
 } from '@/services/planilhaService'
 import { getPlanilhasStatus, planilhaEditavel } from '@/services/planilhaEstadoService'
 import { PlanilhaCategoria, PlanilhaItem, PlanilhaTipo, PlanilhaHeader, PlanilhaStatus } from '@/types'
-import { Btn, EmptyState, LoadingSpinner } from '@/components/ui'
+import { Btn, EmptyState, LoadingSpinner, Modal } from '@/components/ui'
 import { fmtCurrency, cn } from '@/lib/utils'
 import { PlanilhaEstadoBar } from './PlanilhaEstadoBar'
 import { SelecionarItemModal, SelecaoItem } from './SelecionarItemModal'
@@ -44,6 +45,8 @@ type Props = {
   extraCatCells?: (itens: PlanilhaItem[]) => React.ReactNode
   /** render extra cells in total row */
   extraTotalCells?: (allItems: PlanilhaItem[]) => React.ReactNode
+  /** habilita o botão "Importar do Custo (BDI)" — só faz sentido na Venda */
+  permitirImportarCusto?: boolean
 }
 
 // ── Inline editable cell ──────────────────────────────────────────────────────
@@ -96,12 +99,21 @@ export function PlanilhaTab({
   extraCells,
   extraCatCells,
   extraTotalCells,
+  permitirImportarCusto = false,
 }: Props) {
   const [categorias, setCategorias] = useState<CategoriaComItens[]>([])
   const [headers, setHeaders]       = useState<PlanilhaHeader[]>([])
   const [loading, setLoading]       = useState(true)
   const [, setSaving]               = useState<Record<string, boolean>>({})
   const [pickerCat, setPickerCat]   = useState<string | null>(null)
+
+  // ── Importar do Custo (BDI) ─────────────────────────────────────────────────
+  const [importOpen, setImportOpen]   = useState(false)
+  const [bdi, setBdi]                 = useState('0')
+  const [substituir, setSubstituir]   = useState(true)
+  const [importing, setImporting]     = useState(false)
+  const [custoPreview, setCustoPreview] =
+    useState<{ cats: number; itens: number; total: number } | null>(null)
 
   // ── Estado / bloqueio ───────────────────────────────────────────────────────
   const meuHeader = headers.find(h => h.tipo === tipo)
@@ -181,6 +193,34 @@ export function PlanilhaTab({
     const created = await createCategoria(nova)
     if (!created) { toast.error('Erro ao criar categoria'); return }
     setCategorias(prev => [...prev, { ...created, itens: [], collapsed: false }])
+  }
+
+  async function abrirImport() {
+    setBdi('0')
+    setSubstituir(categorias.length > 0)
+    setCustoPreview(null)
+    setImportOpen(true)
+    // Pré-carrega o resumo do Custo Planejado para o preview
+    const [cats, its] = await Promise.all([
+      getCategoriasByObra(obra_id, 'custo_planejado'),
+      getItensByObra(obra_id, 'custo_planejado'),
+    ])
+    setCustoPreview({ cats: cats.length, itens: its.length, total: calcTotalItens(its) })
+  }
+
+  async function handleImportar() {
+    const bdiNum = parseFloat(bdi)
+    if (isNaN(bdiNum) || bdiNum < 0) {
+      toast.error('Informe um BDI válido (≥ 0).')
+      return
+    }
+    setImporting(true)
+    const res = await importarCustoParaVenda(obra_id, { bdiPercent: bdiNum, substituir })
+    setImporting(false)
+    if (res.error) { toast.error(res.error); return }
+    toast.success(`Importado: ${res.categorias} categoria(s), ${res.itens} item(ns).`)
+    setImportOpen(false)
+    await load()
   }
 
   function handleUpdateCategoriaNome(id: string, nome: string) {
@@ -342,6 +382,9 @@ export function PlanilhaTab({
               <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">Total Geral</p>
               <p className="text-xl font-semibold font-mono text-green-400">{fmtCurrency(totalGeral)}</p>
             </div>
+            {permitirImportarCusto && editavel && (
+              <Btn variant="ghost" onClick={abrirImport}>Importar do Custo (BDI)</Btn>
+            )}
             {editavel && <Btn variant="primary" onClick={handleAddCategoria}>+ Categoria</Btn>}
             <button className="px-3 py-1.5 text-xs font-medium bg-white/5 text-white/50 border border-white/10 rounded-xl hover:bg-white/10 transition-colors">
               Exportar XLSX
@@ -579,6 +622,93 @@ export function PlanilhaTab({
           onSelect={handleSelecionarItem}
         />
       )}
+
+      {importOpen && (() => {
+        const bdiNum = parseFloat(bdi)
+        const fatorOk = !isNaN(bdiNum) && bdiNum >= 0
+        const fator = fatorOk ? 1 + bdiNum / 100 : 1
+        return (
+          <Modal
+            title="Importar do Custo Planejado"
+            subtitle="Copia categorias e itens do Custo, aplicando o BDI sobre o valor unitário"
+            onClose={() => { if (!importing) setImportOpen(false) }}
+            width="max-w-md"
+            footer={
+              <>
+                <Btn variant="ghost" size="md" onClick={() => setImportOpen(false)} disabled={importing}>
+                  Cancelar
+                </Btn>
+                <Btn variant="primary" size="md" onClick={handleImportar} disabled={importing || !fatorOk}>
+                  {importing ? 'Importando…' : 'Importar'}
+                </Btn>
+              </>
+            }
+          >
+            {/* BDI */}
+            <div>
+              <label className="block text-xs font-medium text-white/40 mb-1.5">BDI (%)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={bdi}
+                autoFocus
+                onChange={e => setBdi(e.target.value)}
+                placeholder="Ex.: 25"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+              />
+              <p className="text-[11px] text-white/30 mt-1.5">
+                Venda = Custo × <span className="font-mono text-white/50">{fator.toFixed(4)}</span>
+                {fatorOk && bdiNum > 0 && <> (acréscimo de {bdiNum}%)</>}
+                {fatorOk && bdiNum === 0 && <> (cópia idêntica ao custo)</>}
+              </p>
+            </div>
+
+            {/* Preview */}
+            {custoPreview ? (
+              <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-3 text-xs space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-white/40">Categorias</span>
+                  <span className="text-white/70 font-mono">{custoPreview.cats}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-white/40">Itens</span>
+                  <span className="text-white/70 font-mono">{custoPreview.itens}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-white/40">Custo total</span>
+                  <span className="text-white/70 font-mono">{fmtCurrency(custoPreview.total)}</span>
+                </div>
+                <div className="flex justify-between border-t border-white/[0.08] pt-1.5 mt-1.5">
+                  <span className="text-white/60 font-medium">Venda (com BDI)</span>
+                  <span className="text-green-400 font-mono font-semibold">{fmtCurrency(custoPreview.total * fator)}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-white/30">Carregando resumo do custo…</p>
+            )}
+
+            {/* Substituir */}
+            {categorias.length > 0 && (
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={substituir}
+                  onChange={e => setSubstituir(e.target.checked)}
+                  className="mt-0.5 accent-white"
+                />
+                <span className="text-xs text-white/60">
+                  Substituir o conteúdo atual da Venda
+                  <span className="block text-[11px] text-white/30 mt-0.5">
+                    A Venda já tem {categorias.length} categoria(s). Desmarcado, os itens do custo
+                    são adicionados ao final.
+                  </span>
+                </span>
+              </label>
+            )}
+          </Modal>
+        )
+      })()}
     </div>
   )
 }
