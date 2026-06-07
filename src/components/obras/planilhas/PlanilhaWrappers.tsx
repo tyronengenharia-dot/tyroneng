@@ -1,8 +1,6 @@
 'use client'
 
 import { PlanilhaTab } from '@/components/obras/planilhas/PlanilhaTab'
-import { PlanilhaItem } from '@/types'
-import { fmtCurrency } from '@/lib/utils'
 
 // ─── Planilha de Venda ────────────────────────────────────────────────────────
 
@@ -32,17 +30,6 @@ export function CustoPlanejadoTab({ obra_id }: { obra_id: string }) {
 }
 
 // ─── Custo Real ───────────────────────────────────────────────────────────────
-// Custo real crosses with custo planejado to show variance.
-// For simplicity we keep it self-contained; for a full comparison you'd
-// query both tables and join by descricao/codigo in the parent page.
-
-export function CustoRealTab({ obra_id }: { obra_id: string }) {
-  return (
-    <PlanilhaTab
-      obra_id={obra_id}
-      tipo="custo_real"
-      title="Custo Real"
-      subtitle="Valores efetivamente gastos em cada etapa da obra"
-    />
-  )
-}
+// Componente próprio: a planilha de Custo Real ganha a coluna de pagamentos
+// (parcelas) que alimentam as saídas do Financeiro.
+export { CustoRealTab } from './CustoRealTab'

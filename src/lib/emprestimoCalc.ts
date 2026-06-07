@@ -23,6 +23,7 @@ export type ContratoCalc = Pick<
   | 'valor_principal'
   | 'taxa_juros_mensal'
   | 'capitaliza'
+  | 'carencia_meses'
   | 'num_parcelas'
   | 'data_inicio'
   | 'data_limite'
@@ -74,6 +75,21 @@ export function mesesEntre(inicio: string, fim: string): number {
 
 export function hojeISO(): string {
   return new Date().toLocaleDateString('en-CA')
+}
+
+export function diasEntre(aISO: string, bISO: string): number {
+  const a = new Date(`${aISO}T00:00:00`)
+  const b = new Date(`${bISO}T00:00:00`)
+  return Math.round((b.getTime() - a.getTime()) / 86_400_000)
+}
+
+// Conversões de taxa efetiva (compostas).
+export function anualParaMensal(anualPct: number): number {
+  return (Math.pow(1 + anualPct / 100, 1 / 12) - 1) * 100
+}
+
+export function mensalParaAnual(mensalPct: number): number {
+  return (Math.pow(1 + mensalPct / 100, 12) - 1) * 100
 }
 
 // Quantidade de parcelas: usa num_parcelas; senão deriva de data_inicio→data_limite.
@@ -129,20 +145,27 @@ export function gerarParcelas(c: ContratoCalc): ParcelaCalculada[] {
     return parcelas
   }
 
+  const carencia = Math.max(0, c.carencia_meses ?? 0)
+
   // ── Tabela Price (parcela fixa) ──
   if (c.regime === 'price') {
+    let saldo = c.valor_principal
+    // carência: paga só os juros, sem amortizar
+    for (let k = 1; k <= carencia; k++) {
+      const juros = round2(saldo * taxa)
+      push(k, saldo, juros, 0, juros, saldo)
+    }
     const pmt =
       taxa > 0
-        ? round2((c.valor_principal * taxa) / (1 - Math.pow(1 + taxa, -n)))
-        : round2(c.valor_principal / n)
-    let saldo = c.valor_principal
-    for (let k = 1; k <= n; k++) {
+        ? round2((saldo * taxa) / (1 - Math.pow(1 + taxa, -n)))
+        : round2(saldo / n)
+    for (let j = 1; j <= n; j++) {
       const juros = round2(saldo * taxa)
-      const ultima = k === n
+      const ultima = j === n
       const amort = ultima ? round2(saldo) : round2(pmt - juros)
       const total = ultima ? round2(saldo + juros) : pmt
       const saldoFim = saldo - amort
-      push(k, saldo, juros, amort, total, saldoFim)
+      push(carencia + j, saldo, juros, amort, total, saldoFim)
       saldo = round2(saldoFim)
     }
     return parcelas
@@ -150,15 +173,19 @@ export function gerarParcelas(c: ContratoCalc): ParcelaCalculada[] {
 
   // ── SAC (amortização constante) ──
   if (c.regime === 'sac') {
-    const amortConst = round2(c.valor_principal / n)
     let saldo = c.valor_principal
-    for (let k = 1; k <= n; k++) {
+    for (let k = 1; k <= carencia; k++) {
       const juros = round2(saldo * taxa)
-      const ultima = k === n
+      push(k, saldo, juros, 0, juros, saldo)
+    }
+    const amortConst = round2(c.valor_principal / n)
+    for (let j = 1; j <= n; j++) {
+      const juros = round2(saldo * taxa)
+      const ultima = j === n
       const amort = ultima ? round2(saldo) : amortConst
       const total = round2(amort + juros)
       const saldoFim = saldo - amort
-      push(k, saldo, juros, amort, total, saldoFim)
+      push(carencia + j, saldo, juros, amort, total, saldoFim)
       saldo = round2(saldoFim)
     }
     return parcelas
@@ -268,6 +295,66 @@ export function saldoDevedorAtual(
   return round2(contrato.valor_principal + jurosIncorridos - pago)
 }
 
+// ─── Encargos de atraso (multa + mora pró-rata dia) ──────────────────────────
+
+export type Encargos = { dias: number; multa: number; mora: number; total: number }
+
+export function encargosAtraso(
+  parcela: { valor_total: number; valor_pago: number; vencimento: string },
+  contrato: { multa_atraso_pct: number; juros_mora_mensal: number },
+  hoje: string = hojeISO()
+): Encargos {
+  const devido = (parcela.valor_total || 0) - (parcela.valor_pago || 0)
+  if (devido <= 0.005 || parcela.vencimento >= hoje) {
+    return { dias: 0, multa: 0, mora: 0, total: 0 }
+  }
+  const dias = Math.max(0, diasEntre(parcela.vencimento, hoje))
+  const multa = round2((devido * (contrato.multa_atraso_pct || 0)) / 100)
+  const mora = round2((devido * (contrato.juros_mora_mensal || 0)) / 100 * (dias / 30))
+  return { dias, multa, mora, total: round2(multa + mora) }
+}
+
+// ─── CET (Custo Efetivo Total) via IRR por bisseção ──────────────────────────
+// Considera o líquido recebido (principal − IOF − TAC − seguro) e os fluxos das
+// parcelas (valor_total). Retorna a taxa mensal em % (ou null se não converge).
+
+export function cetMensal(
+  contrato: { valor_principal: number; iof: number; tac: number; seguro: number },
+  parcelas: { valor_total: number }[]
+): number | null {
+  const liquido =
+    contrato.valor_principal - (contrato.iof || 0) - (contrato.tac || 0) - (contrato.seguro || 0)
+  const fluxos = parcelas.map(p => p.valor_total).filter(v => v > 0)
+  if (liquido <= 0 || fluxos.length === 0) return null
+
+  const npv = (i: number) => {
+    let v = liquido
+    for (let k = 0; k < fluxos.length; k++) v -= fluxos[k] / Math.pow(1 + i, k + 1)
+    return v
+  }
+
+  let lo = -0.9
+  let hi = 5
+  let flo = npv(lo)
+  const fhi = npv(hi)
+  if (flo === 0) return lo * 100
+  if (fhi === 0) return hi * 100
+  if (flo * fhi > 0) return null
+
+  for (let it = 0; it < 200; it++) {
+    const mid = (lo + hi) / 2
+    const fm = npv(mid)
+    if (Math.abs(fm) < 1e-7) return mid * 100
+    if (flo * fm < 0) {
+      hi = mid
+    } else {
+      lo = mid
+      flo = fm
+    }
+  }
+  return ((lo + hi) / 2) * 100
+}
+
 // ─── Resumo consolidado de um contrato (para a tela de detalhe) ──────────────
 
 export type ResumoContrato = {
@@ -279,12 +366,22 @@ export type ResumoContrato = {
   qtdPagas: number
   qtdAtrasadas: number
   emAtraso: number
+  encargosAtraso: number
+  valorAtualizado: number // saldo devedor + encargos de atraso
+  custoTotal: number // juros + IOF + TAC + seguro
+  cetMensal: number | null
+  cetAnual: number | null
   proximaParcela: string | null
   progresso: number // 0..1
 }
 
+type ContratoResumo = Pick<
+  Emprestimo,
+  'valor_principal' | 'multa_atraso_pct' | 'juros_mora_mensal' | 'iof' | 'tac' | 'seguro'
+>
+
 export function resumoContrato(
-  contrato: Pick<Emprestimo, 'valor_principal'>,
+  contrato: ContratoResumo,
   parcelas: EmprestimoParcela[],
   hoje: string = hojeISO()
 ): ResumoContrato {
@@ -296,14 +393,18 @@ export function resumoContrato(
     (a, p) => a + Math.max(0, (p.valor_total || 0) - (p.valor_pago || 0)),
     0
   )
+  const encargos = parcelas.reduce((a, p) => a + encargosAtraso(p, contrato, hoje).total, 0)
   const proxima = parcelas
     .filter(p => (p.valor_pago || 0) < (p.valor_total || 0))
     .map(p => p.vencimento)
     .sort()[0]
   const qtdPagas = parcelas.filter(p => statusParcela(p, hoje) === 'paga').length
+  const saldo = saldoDevedorAtual(contrato, parcelas, hoje)
+  const custoTotal = totalJuros + (contrato.iof || 0) + (contrato.tac || 0) + (contrato.seguro || 0)
+  const cet = cetMensal(contrato, parcelas)
 
   return {
-    saldoDevedor: saldoDevedorAtual(contrato, parcelas, hoje),
+    saldoDevedor: saldo,
     totalContratado: round2(totalContratado),
     totalPago: round2(totalPago),
     totalJuros: round2(totalJuros),
@@ -311,6 +412,11 @@ export function resumoContrato(
     qtdPagas,
     qtdAtrasadas: atrasadas.length,
     emAtraso: round2(emAtraso),
+    encargosAtraso: round2(encargos),
+    valorAtualizado: round2(Math.max(0, saldo) + encargos),
+    custoTotal: round2(custoTotal),
+    cetMensal: cet,
+    cetAnual: cet === null ? null : mensalParaAnual(cet),
     proximaParcela: proxima ?? null,
     progresso: totalContratado > 0 ? totalPago / totalContratado : 0,
   }

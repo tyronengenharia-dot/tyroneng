@@ -22,6 +22,32 @@ export type EmprestimoStatus =
 
 export type FormaContemplacao = 'nao' | 'lance' | 'sorteio'
 
+export type TipoTaxa = 'mensal' | 'anual'
+
+export type CredorTipo = 'pf' | 'pj'
+
+export type IndiceCorrecao =
+  | 'nenhum'
+  | 'ipca'
+  | 'igpm'
+  | 'inpc'
+  | 'cdi'
+  | 'tr'
+  | 'selic'
+  | 'prefixado'
+
+export type GarantiaTipo =
+  | 'imovel'
+  | 'veiculo'
+  | 'aval'
+  | 'fianca'
+  | 'nota_promissoria'
+  | 'penhor'
+  | 'aplicacao'
+  | 'outro'
+
+export type GarantiaSituacao = 'alienado' | 'livre' | 'quitado' | 'executado'
+
 export type FormaPagamento =
   | 'pix'
   | 'ted'
@@ -40,24 +66,47 @@ export type Emprestimo = {
   id: string
   categoria: EmprestimoCategoria
   descricao: string
+  numero_contrato?: string | null
   credor?: string | null
+  credor_tipo: CredorTipo
+  credor_documento?: string | null
   proposito?: string | null
   valor_principal: number
   data_inicio: string
+  data_assinatura?: string | null
   data_limite?: string | null
   dia_vencimento?: number | null
   status: EmprestimoStatus
   obra_id?: string | null
+  conta_id?: string | null
 
   // empréstimo
   regime: EmprestimoRegime
+  tipo_taxa: TipoTaxa
   taxa_juros_mensal: number
+  taxa_juros_anual: number
   capitaliza: boolean
+  carencia_meses: number
+  indice_correcao: IndiceCorrecao
   num_parcelas?: number | null
+
+  // encargos sobre o crédito
+  iof: number
+  tac: number
+  seguro: number
+
+  // encargos de atraso
+  multa_atraso_pct: number
+  juros_mora_mensal: number
 
   // consórcio
   taxa_admin_pct?: number | null
   fundo_reserva_pct?: number | null
+  grupo?: string | null
+  cota?: string | null
+  bem_objeto?: string | null
+  prazo_grupo_meses?: number | null
+  lance_embutido: boolean
   contemplado: boolean
   data_contemplacao?: string | null
   forma_contemplacao: FormaContemplacao
@@ -76,8 +125,10 @@ export type EmprestimoResumo = Emprestimo & {
   total_contratado: number
   total_pago: number
   total_juros: number
+  total_encargos_pagos: number
   saldo_devedor: number
   valor_em_atraso: number
+  encargos_atraso: number
   qtd_atrasadas: number
   proxima_parcela: string | null
   // join opcional com obra
@@ -96,10 +147,29 @@ export type EmprestimoParcela = {
   valor_total: number
   saldo_final: number
   valor_pago: number
+  valor_encargos: number
   data_pagamento?: string | null
   forma_pagamento?: FormaPagamento | null
   comprovante_url?: string | null
   comprovante_path?: string | null
+  observacoes?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export type EmprestimoGarantia = {
+  id: string
+  emprestimo_id: string
+  tipo: GarantiaTipo
+  descricao: string
+  valor_estimado?: number | null
+  situacao: GarantiaSituacao
+  matricula?: string | null
+  cartorio?: string | null
+  placa?: string | null
+  renavam?: string | null
+  garantidor?: string | null
+  documento?: string | null
   observacoes?: string | null
   created_at?: string
   updated_at?: string

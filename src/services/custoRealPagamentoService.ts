@@ -4,7 +4,7 @@ import { CustoRealPagamento } from '@/types'
 // =============================================================================
 // Pagamentos (parcelas) dos itens de Custo Real.
 // É a ÚNICA porta de entrada das SAÍDAS da obra. A aba Financeiro apenas lê
-// daqui. Requer a migration 0006 aplicada; sem ela, leituras voltam [] (modo
+// daqui. Requer a migration 0007 aplicada; sem ela, leituras voltam [] (modo
 // degradado) e gravações falham com mensagem amigável.
 // =============================================================================
 
@@ -19,7 +19,7 @@ export async function getPagamentosByItem(
     .order('created_at', { ascending: true })
 
   if (error) {
-    console.warn('getPagamentosByItem (migration 0006 aplicada?):', error.message)
+    console.warn('getPagamentosByItem (migration 0007 aplicada?):', error.message)
     return []
   }
   return (data ?? []) as CustoRealPagamento[]
@@ -35,7 +35,7 @@ export async function getPagamentosByObra(
     .order('data', { ascending: false, nullsFirst: false })
 
   if (error) {
-    console.warn('getPagamentosByObra (migration 0006 aplicada?):', error.message)
+    console.warn('getPagamentosByObra (migration 0007 aplicada?):', error.message)
     return []
   }
   return (data ?? []) as CustoRealPagamento[]

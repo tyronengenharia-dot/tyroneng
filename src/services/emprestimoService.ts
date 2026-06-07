@@ -4,6 +4,7 @@ import {
   EmprestimoResumo,
   EmprestimoParcela,
   EmprestimoDocumento,
+  EmprestimoGarantia,
   ParcelaCalculada,
   FormaPagamento,
 } from '@/types/emprestimo'
@@ -130,6 +131,7 @@ function parcelaRow(p: EmprestimoParcela) {
     valor_total: p.valor_total,
     saldo_final: p.saldo_final,
     valor_pago: p.valor_pago,
+    valor_encargos: p.valor_encargos ?? 0,
     data_pagamento: p.data_pagamento ?? null,
     forma_pagamento: p.forma_pagamento ?? null,
     comprovante_url: p.comprovante_url ?? null,
@@ -208,6 +210,7 @@ export async function registrarPagamento(
   parcelaId: string,
   dados: {
     valor_pago: number
+    valor_encargos?: number
     data_pagamento: string | null
     forma_pagamento: FormaPagamento | null
     comprovante_url?: string | null
@@ -259,6 +262,54 @@ export async function deleteDocumento(
     .from('emprestimo_documentos')
     .delete()
     .eq('id', id)
+  if (error) return { error: mapError(error) }
+  return { error: null }
+}
+
+// ─── GARANTIAS (alienação / bens em garantia) ────────────────────────────────
+
+export async function getGarantias(
+  emprestimoId: string
+): Promise<EmprestimoGarantia[]> {
+  const { data, error } = await supabase
+    .from('emprestimo_garantias')
+    .select('*')
+    .eq('emprestimo_id', emprestimoId)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('getGarantias error:', error)
+    return []
+  }
+  return (data as EmprestimoGarantia[]) ?? []
+}
+
+export async function createGarantia(
+  payload: Omit<EmprestimoGarantia, 'id' | 'created_at' | 'updated_at'>
+): Promise<{ data: EmprestimoGarantia | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from('emprestimo_garantias')
+    .insert(payload)
+    .select()
+    .single()
+  if (error) return { data: null, error: mapError(error) }
+  return { data, error: null }
+}
+
+export async function updateGarantia(
+  id: string,
+  payload: Partial<Omit<EmprestimoGarantia, 'id' | 'emprestimo_id' | 'created_at' | 'updated_at'>>
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('emprestimo_garantias')
+    .update(payload)
+    .eq('id', id)
+  if (error) return { error: mapError(error) }
+  return { error: null }
+}
+
+export async function deleteGarantia(id: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.from('emprestimo_garantias').delete().eq('id', id)
   if (error) return { error: mapError(error) }
   return { error: null }
 }

@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0006 — Pagamentos (parcelas) dos itens de Custo Real
+-- 0007 — Pagamentos (parcelas) dos itens de Custo Real
 -- O gasto da obra é registrado UMA vez, aqui: cada item da planilha de Custo
 -- Real (quantidade real × valor real) pode ter N pagamentos/parcelas, cada um
 -- com valor, data, status e comprovante. A aba Financeiro passa a ser apenas

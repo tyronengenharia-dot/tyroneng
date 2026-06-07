@@ -6,6 +6,11 @@ import {
   FormaPagamento,
   ParcelaStatus,
   DocumentoTipo,
+  TipoTaxa,
+  CredorTipo,
+  IndiceCorrecao,
+  GarantiaTipo,
+  GarantiaSituacao,
 } from '@/types/emprestimo'
 
 // ─── Categoria ───────────────────────────────────────────────────────────────
@@ -122,6 +127,82 @@ export const documentoTipoLabels: Record<DocumentoTipo, string> = {
 export const documentoTipoOptions = (
   Object.keys(documentoTipoLabels) as DocumentoTipo[]
 ).map(v => ({ value: v, label: documentoTipoLabels[v] }))
+
+// ─── Tipo de taxa (periodicidade informada) ──────────────────────────────────
+
+export const tipoTaxaLabels: Record<TipoTaxa, string> = {
+  mensal: '% ao mês',
+  anual: '% ao ano',
+}
+
+export const tipoTaxaOptions = (Object.keys(tipoTaxaLabels) as TipoTaxa[]).map(v => ({
+  value: v,
+  label: tipoTaxaLabels[v],
+}))
+
+// ─── Tipo de credor ──────────────────────────────────────────────────────────
+
+export const credorTipoLabels: Record<CredorTipo, string> = {
+  pf: 'Pessoa física (CPF)',
+  pj: 'Pessoa jurídica (CNPJ)',
+}
+
+export const credorTipoOptions = (Object.keys(credorTipoLabels) as CredorTipo[]).map(v => ({
+  value: v,
+  label: credorTipoLabels[v],
+}))
+
+// ─── Índice de correção ──────────────────────────────────────────────────────
+
+export const indiceCorrecaoLabels: Record<IndiceCorrecao, string> = {
+  nenhum: 'Nenhum (prefixado)',
+  ipca: 'IPCA',
+  igpm: 'IGP-M',
+  inpc: 'INPC',
+  cdi: 'CDI',
+  tr: 'TR',
+  selic: 'Selic',
+  prefixado: 'Prefixado',
+}
+
+export const indiceCorrecaoOptions = (
+  Object.keys(indiceCorrecaoLabels) as IndiceCorrecao[]
+).map(v => ({ value: v, label: indiceCorrecaoLabels[v] }))
+
+// ─── Garantias (alienação) ───────────────────────────────────────────────────
+
+export const garantiaTipoLabels: Record<GarantiaTipo, string> = {
+  imovel: 'Imóvel',
+  veiculo: 'Veículo',
+  aval: 'Aval',
+  fianca: 'Fiança',
+  nota_promissoria: 'Nota promissória',
+  penhor: 'Penhor',
+  aplicacao: 'Aplicação financeira',
+  outro: 'Outro',
+}
+
+export const garantiaTipoOptions = (Object.keys(garantiaTipoLabels) as GarantiaTipo[]).map(
+  v => ({ value: v, label: garantiaTipoLabels[v] })
+)
+
+export const garantiaSituacaoLabels: Record<GarantiaSituacao, string> = {
+  alienado: 'Alienado',
+  livre: 'Livre',
+  quitado: 'Quitado',
+  executado: 'Executado',
+}
+
+export const garantiaSituacaoOptions = (
+  Object.keys(garantiaSituacaoLabels) as GarantiaSituacao[]
+).map(v => ({ value: v, label: garantiaSituacaoLabels[v] }))
+
+export const garantiaSituacaoClass: Record<GarantiaSituacao, string> = {
+  alienado: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  livre: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  quitado: 'bg-green-500/10 text-green-400 border-green-500/20',
+  executado: 'bg-red-500/10 text-red-400 border-red-500/20',
+}
 
 // ─── Paleta de cores ─────────────────────────────────────────────────────────
 

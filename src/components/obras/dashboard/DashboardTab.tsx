@@ -1,17 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getFinanceiroByObra, calcReceitas, calcDespesas, calcSaldo } from '@/services/financeiroService'
+import { getResumoFinanceiroObra, type ResumoFinanceiroObra } from '@/services/financeiroObraService'
 import { getMedicaoResumo, MedicaoResumo } from '@/services/medicaoService'
 import { getEtapasByObra } from '@/services/etapaService'
-import { Financeiro, Etapa } from '@/types'
+import { Etapa } from '@/types'
 import { KpiCard, LoadingSpinner, ProgressBar } from '@/components/ui'
 import { fmtCurrency } from '@/lib/utils'
 
 type Props = { obra_id: string; budget: number }
 
 export function DashboardTab({ obra_id, budget }: Props) {
-  const [financeiro, setFinanceiro] = useState<Financeiro[]>([])
+  const [resumo, setResumo] = useState<ResumoFinanceiroObra | null>(null)
   const [medicao, setMedicao] = useState<MedicaoResumo | null>(null)
   const [etapas, setEtapas] = useState<Etapa[]>([])
   const [loading, setLoading] = useState(true)
@@ -19,12 +19,12 @@ export function DashboardTab({ obra_id, budget }: Props) {
   useEffect(() => {
     let active = true
     Promise.all([
-      getFinanceiroByObra(obra_id),
+      getResumoFinanceiroObra(obra_id),
       getMedicaoResumo(obra_id),
       getEtapasByObra(obra_id),
     ]).then(([f, m, e]) => {
       if (!active) return
-      setFinanceiro(f)
+      setResumo(f)
       setMedicao(m)
       setEtapas(e)
       setLoading(false)
@@ -32,11 +32,11 @@ export function DashboardTab({ obra_id, budget }: Props) {
     return () => { active = false }
   }, [obra_id])
 
-  if (loading) return <LoadingSpinner />
+  if (loading || !resumo) return <LoadingSpinner />
 
-  const receitas  = calcReceitas(financeiro)
-  const despesas  = calcDespesas(financeiro)
-  const saldo     = calcSaldo(financeiro)
+  const receitas  = resumo.receitaRealizada
+  const despesas  = resumo.despesaRealizada
+  const saldo     = resumo.saldo
   const margem    = receitas > 0 ? ((saldo / receitas) * 100).toFixed(1) : '0'
 
   const totalMedido   = medicao?.totalMedido ?? 0
@@ -141,18 +141,18 @@ export function DashboardTab({ obra_id, budget }: Props) {
         </div>
         <table className="w-full text-sm">
           <tbody>
-            {financeiro.slice(0, 5).map(item => (
-              <tr key={item.id} className="border-t border-white/[0.05] hover:bg-white/[0.02]">
-                <td className="px-5 py-3 text-white/80 font-medium">{item.description}</td>
-                <td className="px-5 py-3 text-white/30 text-xs">{item.category}</td>
+            {resumo.movimentacoes.slice(0, 5).map(m => (
+              <tr key={m.key} className="border-t border-white/[0.05] hover:bg-white/[0.02]">
+                <td className="px-5 py-3 text-white/80 font-medium">{m.titulo}</td>
+                <td className="px-5 py-3 text-white/30 text-xs">{m.origem}</td>
                 <td className="px-5 py-3 text-right font-mono">
-                  <span className={item.type === 'entrada' ? 'text-green-400' : 'text-red-400'}>
-                    {item.type === 'entrada' ? '+' : '-'} {fmtCurrency(item.value)}
+                  <span className={m.tipo === 'entrada' ? 'text-green-400' : 'text-red-400'}>
+                    {m.tipo === 'entrada' ? '+' : '-'} {fmtCurrency(m.valor)}
                   </span>
                 </td>
               </tr>
             ))}
-            {financeiro.length === 0 && (
+            {resumo.movimentacoes.length === 0 && (
               <tr>
                 <td colSpan={3} className="text-center py-8 text-white/20 text-xs">
                   Nenhuma movimentação registrada

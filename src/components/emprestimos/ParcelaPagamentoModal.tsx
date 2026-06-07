@@ -6,6 +6,7 @@ import { Modal, Input, Select, Btn } from '@/components/ui'
 import { Emprestimo, EmprestimoParcela, FormaPagamento } from '@/types/emprestimo'
 import { registrarPagamento, uploadAnexo } from '@/services/emprestimoService'
 import { formaPagamentoOptions } from '@/lib/emprestimoConstants'
+import { encargosAtraso } from '@/lib/emprestimoCalc'
 import { fmtCurrency, fmtDate } from '@/lib/utils'
 
 interface Props {
@@ -26,12 +27,14 @@ const num = (s: string) => {
 
 export function ParcelaPagamentoModal({ contrato, parcela, onClose, onSaved }: Props) {
   const restante = Math.max(0, parcela.valor_total - parcela.valor_pago)
+  const enc = encargosAtraso(parcela, contrato)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
 
   const [form, setForm] = useState({
     valor_pago: (parcela.valor_pago || restante || parcela.valor_total).toString(),
+    valor_encargos: (parcela.valor_encargos || enc.total || 0).toString(),
     data_pagamento: parcela.data_pagamento ?? hoje(),
     forma_pagamento: (parcela.forma_pagamento ?? 'pix') as FormaPagamento,
     observacoes: parcela.observacoes ?? '',
@@ -62,6 +65,7 @@ export function ParcelaPagamentoModal({ contrato, parcela, onClose, onSaved }: P
 
     const { error } = await registrarPagamento(contrato, parcela.id, {
       valor_pago: valorPago,
+      valor_encargos: limpar ? 0 : num(form.valor_encargos),
       data_pagamento: limpar ? null : form.data_pagamento || hoje(),
       forma_pagamento: limpar ? null : form.forma_pagamento,
       comprovante_url: limpar ? null : comprovante_url,
@@ -123,6 +127,24 @@ export function ParcelaPagamentoModal({ contrato, parcela, onClose, onSaved }: P
         </div>
       </div>
 
+      {/* encargos de atraso */}
+      {enc.dias > 0 && (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/[0.06] p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-red-400">
+              Parcela vencida há {enc.dias} dia{enc.dias === 1 ? '' : 's'}
+            </span>
+            <span className="text-sm font-semibold text-red-400 tabular-nums">
+              + {fmtCurrency(enc.total)}
+            </span>
+          </div>
+          <p className="text-[11px] text-white/40 mt-1">
+            Multa {fmtCurrency(enc.multa)} + mora {fmtCurrency(enc.mora)}. Total a pagar hoje:{' '}
+            <span className="text-white/70 font-medium">{fmtCurrency(restante + enc.total)}</span>
+          </p>
+        </div>
+      )}
+
       {/* atalhos */}
       <div className="flex flex-wrap gap-2">
         <Btn variant="ghost" size="sm" onClick={() => set('valor_pago', parcela.valor_total.toString())}>
@@ -149,6 +171,14 @@ export function ParcelaPagamentoModal({ contrato, parcela, onClose, onSaved }: P
           min={0}
           value={form.valor_pago}
           onChange={e => set('valor_pago', e.target.value)}
+        />
+        <Input
+          label="Multa + mora pagos (R$)"
+          type="number"
+          step="0.01"
+          min={0}
+          value={form.valor_encargos}
+          onChange={e => set('valor_encargos', e.target.value)}
         />
         <Input
           label="Data do pagamento"

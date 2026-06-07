@@ -1,0 +1,1 @@
+src/lib/emprestimoCalc.ts(406,3): error TS2741: Property 'proximaParcela' is missing in type '{ saldoDevedor: number; totalContratado: number; totalPago: number; totalJuros: number; qtdParcelas: number; qtdPagas: number; qtdAtrasadas: number; emAtraso: number; encargosAtraso: number; ... 4 more ...; progresso: number; }' but required in type 'ResumoContrato'.
