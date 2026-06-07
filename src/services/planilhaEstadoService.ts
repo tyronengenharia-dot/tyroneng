@@ -43,6 +43,34 @@ export async function aprovarCustoPlanejado(obra_id: string): Promise<{ error: s
   return { error: error?.message ?? null }
 }
 
+// Quantos itens o Custo Real já tem — decide o fluxo de reabertura:
+// 0 => reabre direto; >0 => exige confirmação destrutiva (apaga o Custo Real).
+export async function custoRealTemItens(obra_id: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('planilha_itens')
+    .select('*', { count: 'exact', head: true })
+    .eq('obra_id', obra_id)
+    .eq('tipo', 'custo_real')
+  if (error) {
+    console.warn('custoRealTemItens:', error.message)
+    return 0
+  }
+  return count ?? 0
+}
+
+// Reabre o Custo Planejado aprovado. Se o Custo Real tiver dados, exige
+// apagarCustoReal = true (a UI obtém a dupla confirmação do usuário antes).
+export async function reabrirCustoPlanejado(
+  obra_id: string,
+  apagarCustoReal: boolean
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('reabrir_custo_planejado', {
+    p_obra_id: obra_id,
+    p_apagar_custo_real: apagarCustoReal,
+  })
+  return { error: error?.message ?? null }
+}
+
 export async function criarAditivo(obra_id: string): Promise<{ id: string | null; error: string | null }> {
   const { data, error } = await supabase.rpc('criar_aditivo', { p_obra_id: obra_id })
   return { id: (data as string) ?? null, error: error?.message ?? null }
