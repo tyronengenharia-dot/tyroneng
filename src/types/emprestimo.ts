@@ -204,3 +204,26 @@ export type ParcelaCalculada = {
   valor_total: number
   saldo_final: number
 }
+
+// ─── RATEIO ENTRE OBRAS (destinos do empréstimo) ─────────────────────────────
+// O valor principal pode ser dividido entre vários destinos: cada destino é uma
+// obra (obra_id) ou "outros/uso geral" (obra_id null). A fatia de uma obra vira
+// entrada no Financeiro dela — 'recebido' = realizado, 'previsto' = a receber.
+
+export type EmprestimoRateioStatus = 'recebido' | 'previsto'
+
+export type EmprestimoRateio = {
+  id: string
+  emprestimo_id: string
+  obra_id?: string | null
+  descricao?: string | null
+  valor: number
+  data?: string | null
+  status: EmprestimoRateioStatus
+  comprovante_url?: string | null
+  comprovante_path?: string | null
+  created_at?: string
+  // joins opcionais (preenchidos em algumas queries)
+  emprestimo?: { descricao: string; categoria: EmprestimoCategoria } | null
+  obra?: { id: string; name: string } | null
+}

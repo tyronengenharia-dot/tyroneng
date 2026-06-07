@@ -1,15 +1,18 @@
 import { getBoletinsComTotais } from '@/services/medicaoService'
 import { getPagamentosByObra } from '@/services/custoRealPagamentoService'
 import { getItensByObra } from '@/services/planilhaService'
+import { getRateiosByObra } from '@/services/emprestimoService'
 import { CustoRealPagamento, MedicaoBoletim, PlanilhaItem } from '@/types'
+import { EmprestimoRateio } from '@/types/emprestimo'
 
 // =============================================================================
 // Resumo financeiro de UMA obra — fonte única de verdade.
 // O Financeiro da obra é apenas LEITURA e tudo se reconcilia por construção:
 //   ENTRADAS  = Medições (boletim pago = realizado; aprovado = a receber)
+//               + Empréstimos rateados à obra (recebido = realizado; previsto = a receber)
 //   SAÍDAS    = parcelas do Custo Real (pago = realizado; pendente/atrasado = comprometido)
 // A aba Financeiro e o Dashboard da obra consomem ESTE módulo, então os números
-// sempre batem entre as telas. (Empréstimos entram aqui na Fase 2.)
+// sempre batem entre as telas.
 // =============================================================================
 
 export type MovStatusKey = 'pago' | 'a_receber' | 'pendente' | 'atrasado'
@@ -36,13 +39,14 @@ export type ResumoFinanceiroObra = {
 }
 
 export async function getResumoFinanceiroObra(obra_id: string): Promise<ResumoFinanceiroObra> {
-  const [boletins, pagamentos, itens] = await Promise.all([
+  const [boletins, pagamentos, itens, rateios] = await Promise.all([
     getBoletinsComTotais(obra_id),
     getPagamentosByObra(obra_id),
     getItensByObra(obra_id, 'custo_real'),
+    getRateiosByObra(obra_id),
   ])
 
-  const movimentacoes = montarMovimentacoes(boletins, pagamentos, itens)
+  const movimentacoes = montarMovimentacoes(boletins, pagamentos, itens, rateios)
 
   const sum = (pred: (m: Movimentacao) => boolean) =>
     movimentacoes.filter(pred).reduce((acc, m) => acc + m.valor, 0)
@@ -61,6 +65,7 @@ function montarMovimentacoes(
   boletins: (MedicaoBoletim & { valor: number })[],
   pagamentos: CustoRealPagamento[],
   itens: PlanilhaItem[],
+  rateios: EmprestimoRateio[],
 ): Movimentacao[] {
   const itemById = new Map(itens.map(i => [i.id, i]))
 
@@ -94,5 +99,18 @@ function montarMovimentacoes(
     }
   })
 
-  return [...entradas, ...saidas].sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))
+  // Entradas de empréstimo (fatia rateada a esta obra).
+  const emprestimos: Movimentacao[] = rateios.map(r => ({
+    key: `rat-${r.id}`,
+    tipo: 'entrada' as const,
+    titulo: r.emprestimo?.descricao ? `Empréstimo — ${r.emprestimo.descricao}` : 'Empréstimo',
+    origem: r.descricao?.trim() ? `Empréstimo · ${r.descricao.trim()}` : 'Empréstimo (rateio)',
+    valor: Number(r.valor) || 0,
+    statusKey: (r.status === 'recebido' ? 'pago' : 'a_receber') as MovStatusKey,
+    data: r.data ?? null,
+    comprovante_url: r.comprovante_url ?? null,
+  }))
+
+  // Mais recentes primeiro; datas nulas vão para o fim.
+  return [...entradas, ...emprestimos, ...saidas].sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))
 }

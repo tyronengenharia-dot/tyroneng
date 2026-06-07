@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Target,
   ShieldCheck,
+  Building2,
 } from 'lucide-react'
 import { KpiCard, Btn, LoadingSpinner, EmptyState } from '@/components/ui'
 import {
@@ -45,6 +46,7 @@ import { SaldoChart } from './SaldoChart'
 import { DocumentosSection } from './DocumentosSection'
 import { GarantiasSection } from './GarantiasSection'
 import { ParcelaPagamentoModal } from './ParcelaPagamentoModal'
+import { RateioObrasSection } from './RateioObrasSection'
 
 interface Props {
   emprestimo: Emprestimo
@@ -404,6 +406,18 @@ export function EmprestimoDetalhe({
                 </div>
               </>
             )}
+
+            {/* Rateio entre obras */}
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                <Building2 size={15} className="text-white/30" /> Rateio entre obras (destinos)
+              </h3>
+              <RateioObrasSection
+                emprestimoId={e.id}
+                valorPrincipal={e.valor_principal}
+                onChanged={onChanged}
+              />
+            </div>
 
             {/* Garantias */}
             <div>

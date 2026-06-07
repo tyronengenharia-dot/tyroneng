@@ -5,6 +5,7 @@ import {
   EmprestimoParcela,
   EmprestimoDocumento,
   EmprestimoGarantia,
+  EmprestimoRateio,
   ParcelaCalculada,
   FormaPagamento,
 } from '@/types/emprestimo'
@@ -314,6 +315,68 @@ export async function deleteGarantia(id: string): Promise<{ error: string | null
   return { error: null }
 }
 
+// ─── RATEIO ENTRE OBRAS (destinos do empréstimo) ─────────────────────────────
+// Requer a migration 0008. Sem ela, leituras voltam [] e gravações dão erro
+// amigável. A fatia de cada obra vira entrada no Financeiro dela.
+
+export async function getRateios(emprestimoId: string): Promise<EmprestimoRateio[]> {
+  const { data, error } = await supabase
+    .from('emprestimo_rateios')
+    .select('*, obra:obras(id, name)')
+    .eq('emprestimo_id', emprestimoId)
+    .order('created_at', { ascending: true })
+  if (error) {
+    console.warn('getRateios (migration 0008 aplicada?):', error.message)
+    return []
+  }
+  return (data as EmprestimoRateio[]) ?? []
+}
+
+// Rateios destinados a UMA obra (com o nome do empréstimo) — usado pelo Financeiro.
+export async function getRateiosByObra(obra_id: string): Promise<EmprestimoRateio[]> {
+  const { data, error } = await supabase
+    .from('emprestimo_rateios')
+    .select('*, emprestimo:emprestimos(descricao, categoria)')
+    .eq('obra_id', obra_id)
+    .order('data', { ascending: false, nullsFirst: false })
+  if (error) {
+    console.warn('getRateiosByObra (migration 0008 aplicada?):', error.message)
+    return []
+  }
+  return (data as EmprestimoRateio[]) ?? []
+}
+
+export async function createRateio(
+  payload: Omit<EmprestimoRateio, 'id' | 'created_at' | 'emprestimo' | 'obra'>
+): Promise<{ data: EmprestimoRateio | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from('emprestimo_rateios')
+    .insert(payload)
+    .select()
+    .single()
+  if (error) return { data: null, error: mapError(error) }
+  return { data: data as EmprestimoRateio, error: null }
+}
+
+export async function updateRateio(
+  id: string,
+  payload: Partial<Omit<EmprestimoRateio, 'id' | 'created_at' | 'emprestimo_id' | 'emprestimo' | 'obra'>>
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.from('emprestimo_rateios').update(payload).eq('id', id)
+  if (error) return { error: mapError(error) }
+  return { error: null }
+}
+
+export async function deleteRateio(
+  id: string,
+  comprovantePath?: string | null
+): Promise<{ error: string | null }> {
+  if (comprovantePath) await supabase.storage.from('comprovantes').remove([comprovantePath])
+  const { error } = await supabase.from('emprestimo_rateios').delete().eq('id', id)
+  if (error) return { error: mapError(error) }
+  return { error: null }
+}
+
 // ─── STORAGE (bucket "comprovantes", reaproveitado) ──────────────────────────
 
 export async function uploadAnexo(
@@ -333,6 +396,10 @@ export async function uploadAnexo(
 
   const { data } = supabase.storage.from('comprovantes').getPublicUrl(path)
   return { url: data.publicUrl, path }
+}
+
+export async function removeAnexo(path: string): Promise<void> {
+  await supabase.storage.from('comprovantes').remove([path])
 }
 
 // ─── erros ───────────────────────────────────────────────────────────────────
