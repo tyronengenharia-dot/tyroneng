@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { SolicitacaoCompra, UrgenciaSolicitacao } from '@/types/compras'
+import type { Insumo } from '@/types/insumo'
 import { createSolicitacao } from '@/services/comprasService'
+import { getInsumos } from '@/services/insumoService'
 
 interface Props {
   aberto: boolean
@@ -49,6 +51,7 @@ type Campos = {
   solicitante: string
   observacoes: string
   obra_id: string
+  insumo_id: string
 }
 
 const VAZIO: Campos = {
@@ -61,6 +64,7 @@ const VAZIO: Campos = {
   solicitante: '',
   observacoes: '',
   obra_id: '',
+  insumo_id: '',
 }
 
 function InputField({
@@ -98,6 +102,12 @@ export function NovaSolicitacaoModal({ aberto, onFechar, onCriada }: Props) {
   const [erroGeral, setErroGeral] = useState<string | null>(null)
   const primeiroInput = useRef<HTMLInputElement>(null)
 
+  // Catálogo de insumos (origem opcional do item solicitado)
+  const [catalogo, setCatalogo] = useState<Insumo[]>([])
+  const [insumoSel, setInsumoSel] = useState<Insumo | null>(null)
+  const [showPicker, setShowPicker] = useState(false)
+  const [buscaInsumo, setBuscaInsumo] = useState('')
+
   // Fecha com Esc
   useEffect(() => {
     if (!aberto) return
@@ -116,8 +126,50 @@ export function NovaSolicitacaoModal({ aberto, onFechar, onCriada }: Props) {
       setCampos(VAZIO)
       setErros({})
       setErroGeral(null)
+      setInsumoSel(null)
+      setShowPicker(false)
+      setBuscaInsumo('')
     }
   }, [aberto])
+
+  // Carrega o catálogo de insumos ativos ao abrir
+  useEffect(() => {
+    if (!aberto) return
+    let active = true
+    getInsumos().then((rows) => {
+      if (active) setCatalogo(rows.filter((i) => i.ativo))
+    })
+    return () => { active = false }
+  }, [aberto])
+
+  // Vincula um insumo do catálogo: preenche descrição e trava a unidade.
+  function selecionarInsumo(ins: Insumo) {
+    setInsumoSel(ins)
+    setCampos((prev) => ({
+      ...prev,
+      insumo_id: ins.id,
+      descricao: ins.descricao,
+      unidade: ins.unidade,
+    }))
+    setErros((prev) => ({ ...prev, descricao: '' }))
+    setShowPicker(false)
+    setBuscaInsumo('')
+  }
+
+  // Desvincula: volta ao modo item avulso (texto livre / unidade editável).
+  function limparInsumo() {
+    setInsumoSel(null)
+    setCampos((prev) => ({
+      ...prev,
+      insumo_id: '',
+      unidade: UNIDADES.includes(prev.unidade) ? prev.unidade : 'un',
+    }))
+  }
+
+  const catalogoFiltrado = catalogo.filter((i) => {
+    const q = buscaInsumo.toLowerCase()
+    return i.codigo.toLowerCase().includes(q) || i.descricao.toLowerCase().includes(q)
+  })
 
   function set(campo: keyof Campos, valor: string) {
     setCampos((prev) => ({ ...prev, [campo]: valor }))
@@ -150,6 +202,7 @@ export function NovaSolicitacaoModal({ aberto, onFechar, onCriada }: Props) {
         solicitante: campos.solicitante.trim(),
         observacoes: campos.observacoes.trim() || undefined,
         obra_id: campos.obra_id || 'default',
+        insumo_id: campos.insumo_id || undefined,
         status: 'pendente',
       })
       onCriada(nova)
@@ -191,6 +244,73 @@ export function NovaSolicitacaoModal({ aberto, onFechar, onCriada }: Props) {
         {/* Body */}
         <div className="max-h-[65vh] overflow-y-auto px-6 py-5">
           <div className="space-y-4">
+            {/* Catálogo de insumos */}
+            <InputField label="Buscar no catálogo de insumos">
+              {insumoSel ? (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-[12px] font-medium text-zinc-100">
+                      <span className="font-mono text-indigo-300">{insumoSel.codigo}</span> · {insumoSel.descricao}
+                    </p>
+                    <p className="text-[10px] text-zinc-400">
+                      Unidade {insumoSel.unidade} · ref. R$ {insumoSel.valor_unitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={limparInsumo}
+                    className="shrink-0 rounded-md border border-zinc-600/60 px-2 py-1 text-[10px] font-medium text-zinc-400 transition-colors hover:text-zinc-200"
+                  >
+                    Remover
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowPicker((v) => !v)}
+                    className="flex w-full items-center justify-between rounded-lg border border-dashed border-zinc-700/60 bg-zinc-800/40 px-3 py-2 text-[12px] text-zinc-400 transition-colors hover:border-indigo-500/50 hover:text-zinc-300"
+                  >
+                    <span>Vincular item do catálogo (opcional)</span>
+                    <svg className="h-3 w-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 6l4 4 4-4" strokeLinecap="round"/></svg>
+                  </button>
+                  {showPicker && (
+                    <div className="mt-2 rounded-lg border border-zinc-700/60 bg-zinc-800/40 p-2">
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="Buscar por código ou descrição..."
+                        value={buscaInsumo}
+                        onChange={(e) => setBuscaInsumo(e.target.value)}
+                        className={inputCls}
+                      />
+                      <div className="mt-2 max-h-40 overflow-y-auto">
+                        {catalogoFiltrado.length === 0 ? (
+                          <p className="py-3 text-center text-[11px] text-zinc-600">
+                            {catalogo.length === 0 ? 'Nenhum insumo ativo no catálogo.' : 'Nenhum insumo para este filtro.'}
+                          </p>
+                        ) : (
+                          catalogoFiltrado.slice(0, 50).map((ins) => (
+                            <button
+                              key={ins.id}
+                              type="button"
+                              onClick={() => selecionarInsumo(ins)}
+                              className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-zinc-700/50"
+                            >
+                              <span className="truncate text-[12px] text-zinc-300">
+                                <span className="font-mono text-zinc-500">{ins.codigo}</span> {ins.descricao}
+                              </span>
+                              <span className="shrink-0 text-[10px] text-zinc-500">{ins.unidade}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </InputField>
+
             {/* Descrição */}
             <InputField label="Material / Serviço" required error={erros.descricao}>
               <input
@@ -237,18 +357,28 @@ export function NovaSolicitacaoModal({ aberto, onFechar, onCriada }: Props) {
               </div>
               <div>
                 <InputField label="Unidade">
-                  <div className="relative">
-                    <select
+                  {insumoSel ? (
+                    <input
+                      type="text"
                       value={campos.unidade}
-                      onChange={(e) => set('unidade', e.target.value)}
-                      className={selectCls}
-                    >
-                      {UNIDADES.map((u) => (
-                        <option key={u} value={u}>{u}</option>
-                      ))}
-                    </select>
-                    <svg className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-500" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>
-                  </div>
+                      readOnly
+                      title="Unidade definida pelo insumo do catálogo"
+                      className={`${inputCls} cursor-not-allowed opacity-70`}
+                    />
+                  ) : (
+                    <div className="relative">
+                      <select
+                        value={campos.unidade}
+                        onChange={(e) => set('unidade', e.target.value)}
+                        className={selectCls}
+                      >
+                        {UNIDADES.map((u) => (
+                          <option key={u} value={u}>{u}</option>
+                        ))}
+                      </select>
+                      <svg className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-500" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>
+                    </div>
+                  )}
                 </InputField>
               </div>
             </div>

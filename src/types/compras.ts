@@ -26,6 +26,9 @@ export interface SolicitacaoCompra {
   obra_nome?: string
   solicitante: string
   categoria: string
+  // Vínculo opcional com o catálogo de insumos. Quando preenchido, a entrega
+  // confirmada atualiza o preço de referência e o estoque desse insumo.
+  insumo_id?: string
   descricao: string
   unidade: string
   quantidade: number
@@ -61,6 +64,8 @@ export interface PedidoCompra {
   id: string
   solicitacao_id: string
   cotacao_id?: string
+  // Herdado da solicitação; lido pelo trigger ao confirmar a entrega.
+  insumo_id?: string
   fornecedor: string
   descricao_item: string
   quantidade: number

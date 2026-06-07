@@ -193,6 +193,7 @@ export async function selecionarCotacao(
   const pedido = await createPedido({
     solicitacao_id,
     cotacao_id,
+    insumo_id: solicitacao.insumo_id,
     fornecedor: cotacao.fornecedor,
     descricao_item: solicitacao.descricao,
     quantidade: solicitacao.quantidade,
