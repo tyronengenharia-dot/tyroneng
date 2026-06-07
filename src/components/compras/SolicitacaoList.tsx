@@ -8,10 +8,26 @@ import { deleteSolicitacao } from '@/services/comprasService'
 
 interface Props {
   data: SolicitacaoCompra[]
+  obrasById?: Record<string, string>
   onCotar?: (solicitacao: SolicitacaoCompra) => void
   onVerDetalhes?: (item: SolicitacaoCompra) => void
   onNovaSolicitacao?: () => void
   onExcluida?: (id: string) => void
+}
+
+// Obra solicitante (origem): nome resolvido, ou "Geral / Empresa" quando sem obra.
+function origemLabel(s: SolicitacaoCompra, obrasById?: Record<string, string>): string {
+  const nome = s.obra_nome ?? (s.obra_id ? obrasById?.[s.obra_id] : undefined)
+  return nome ?? 'Geral / Empresa'
+}
+
+// Destino da entrega: "Obra: <nome>" ou "Depósito" (default).
+function destinoLabel(s: SolicitacaoCompra, obrasById?: Record<string, string>): string {
+  if (s.entrega_tipo === 'obra') {
+    const nome = s.entrega_obra_nome ?? (s.entrega_obra_id ? obrasById?.[s.entrega_obra_id] : undefined)
+    return nome ? `Obra: ${nome}` : 'Obra'
+  }
+  return 'Depósito'
 }
 
 const FILTROS_STATUS: { label: string; value: StatusSolicitacao | 'todas' | 'ativas' }[] = [
@@ -27,11 +43,13 @@ const FILTROS_STATUS: { label: string; value: StatusSolicitacao | 'todas' | 'ati
 
 function ModalDetalhes({
   solicitacao,
+  obrasById,
   onFechar,
   onExcluir,
   onCotar,
 }: {
   solicitacao: SolicitacaoCompra
+  obrasById?: Record<string, string>
   onFechar: () => void
   onExcluir: (id: string) => void
   onCotar?: (s: SolicitacaoCompra) => void
@@ -112,8 +130,10 @@ function ModalDetalhes({
               label="Data necessária"
               valor={formatarData(solicitacao.data_necessaria)}
             />
-            {solicitacao.obra_nome && (
-              <Campo label="Obra" valor={solicitacao.obra_nome} span2 />
+            <Campo label="Obra solicitante" valor={origemLabel(solicitacao, obrasById)} />
+            <Campo label="Destino da entrega" valor={destinoLabel(solicitacao, obrasById)} />
+            {solicitacao.entrega_tipo === 'obra' && solicitacao.planilha_item_descricao && (
+              <Campo label="Item do Custo Real" valor={solicitacao.planilha_item_descricao} span2 />
             )}
           </div>
 
@@ -205,7 +225,7 @@ function Campo({ label, valor, span2 }: { label: string; valor: string; span2?: 
 
 // ─── Lista Principal ─────────────────────────────────────────────────────────
 
-export function SolicitacaoList({ data, onCotar, onVerDetalhes, onNovaSolicitacao, onExcluida }: Props) {
+export function SolicitacaoList({ data, obrasById, onCotar, onVerDetalhes, onNovaSolicitacao, onExcluida }: Props) {
   const [filtroStatus, setFiltroStatus] = useState<StatusSolicitacao | 'todas' | 'ativas'>('ativas')
   const [busca, setBusca] = useState('')
   const [cotandoId, setCotandoId] = useState<string | null>(null)
@@ -318,7 +338,7 @@ export function SolicitacaoList({ data, onCotar, onVerDetalhes, onNovaSolicitaca
             <table className="min-w-full">
               <thead>
                 <tr className="border-b border-zinc-800 bg-zinc-900/80">
-                  {['#', 'Descrição', 'Categoria', 'Qtd', 'Urgência', 'Necessidade', 'Status', 'Solicitante', ''].map((h) => (
+                  {['#', 'Descrição', 'Categoria', 'Qtd', 'Urgência', 'Necessidade', 'Status', 'Solicitante', 'Destino', ''].map((h) => (
                     <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-zinc-500">{h}</th>
                   ))}
                 </tr>
@@ -326,7 +346,7 @@ export function SolicitacaoList({ data, onCotar, onVerDetalhes, onNovaSolicitaca
               <tbody className="divide-y divide-zinc-800/60">
                 {filtrados.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-[12px] text-zinc-500">
+                    <td colSpan={10} className="py-12 text-center text-[12px] text-zinc-500">
                       Nenhuma solicitação encontrada
                     </td>
                   </tr>
@@ -353,6 +373,7 @@ export function SolicitacaoList({ data, onCotar, onVerDetalhes, onNovaSolicitaca
                         <BadgeStatus status={s.status} />
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-[12px] text-zinc-400">{s.solicitante}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-[12px] text-zinc-400">{destinoLabel(s, obrasById)}</td>
                       <td className="whitespace-nowrap px-4 py-3">
                         <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
                           {s.status === 'pendente' && (
@@ -394,6 +415,7 @@ export function SolicitacaoList({ data, onCotar, onVerDetalhes, onNovaSolicitaca
       {modalSolicitacao && (
         <ModalDetalhes
           solicitacao={modalSolicitacao}
+          obrasById={obrasById}
           onFechar={() => setModalSolicitacao(null)}
           onExcluir={handleExcluida}
           onCotar={handleCotar}

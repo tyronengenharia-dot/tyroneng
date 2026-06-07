@@ -194,6 +194,11 @@ export async function selecionarCotacao(
     solicitacao_id,
     cotacao_id,
     insumo_id: solicitacao.insumo_id,
+    // origem/destino herdados da solicitação -> o trigger de entrega roteia por aqui
+    obra_id: solicitacao.obra_id,
+    entrega_tipo: solicitacao.entrega_tipo,
+    entrega_obra_id: solicitacao.entrega_obra_id,
+    planilha_item_id: solicitacao.planilha_item_id,
     fornecedor: cotacao.fornecedor,
     descricao_item: solicitacao.descricao,
     quantidade: solicitacao.quantidade,
@@ -416,7 +421,7 @@ export async function updatePedidoStatus(
 export async function getEntregas(filtros?: FiltroEntregas) {
   let query = supabase
     .from('entregas')
-    .select('*, pedidos_compra(fornecedor, descricao_item, valor_final)')
+    .select('*, pedido:pedidos_compra(fornecedor, descricao_item, valor_final, obra_id, entrega_tipo, entrega_obra_id, planilha_item_id)')
     .order('data_prevista', { ascending: true })
 
   if (filtros?.status && filtros.status !== 'todas') {

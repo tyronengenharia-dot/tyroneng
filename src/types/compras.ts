@@ -18,11 +18,16 @@ export type FormaPagamento =
   | '30_dias'
   | '60_dias'
 
+// Para onde o material vai ao ser entregue: uma obra específica ou o depósito
+// (estoque central da empresa). Ausência (undefined/null) é tratada como depósito.
+export type DestinoEntrega = 'obra' | 'deposito'
+
 // ─── Entidades principais ───────────────────────────────────────────────────
 
 export interface SolicitacaoCompra {
   id: string
-  obra_id: string
+  // Obra solicitante (origem). Vazio/undefined = compra "Geral / Empresa".
+  obra_id?: string
   obra_nome?: string
   solicitante: string
   categoria: string
@@ -36,6 +41,14 @@ export interface SolicitacaoCompra {
   data_necessaria: string
   status: StatusSolicitacao
   observacoes?: string
+  // Destino da entrega: obra específica ou depósito (default). Quando 'obra',
+  // planilha_item_id aponta o item de Custo Real onde o gasto será lançado ao
+  // confirmar a entrega; entrega_obra_id é a obra desse item.
+  entrega_tipo?: DestinoEntrega
+  entrega_obra_id?: string
+  entrega_obra_nome?: string
+  planilha_item_id?: string
+  planilha_item_descricao?: string
   created_at: string
   updated_at?: string
 }
@@ -66,6 +79,13 @@ export interface PedidoCompra {
   cotacao_id?: string
   // Herdado da solicitação; lido pelo trigger ao confirmar a entrega.
   insumo_id?: string
+  // Origem (obra solicitante) e destino da entrega — herdados da solicitação.
+  // O trigger de entrega usa entrega_tipo + planilha_item_id para rotear o
+  // write-back (depósito -> estoque; obra -> Custo Real).
+  obra_id?: string
+  entrega_tipo?: DestinoEntrega
+  entrega_obra_id?: string
+  planilha_item_id?: string
   fornecedor: string
   descricao_item: string
   quantidade: number

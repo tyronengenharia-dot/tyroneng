@@ -23,6 +23,18 @@ alter table solicitacoes_compra
 alter table pedidos_compra
   add column if not exists insumo_id uuid references insumos(id) on delete set null;
 
+-- materiais = estoque físico (consumido pela tela de Estoque e pelo trigger
+-- abaixo). Criada aqui pois nunca foi versionada em migração anterior, embora
+-- o app já a referencie. Schema espelha o tipo Material de src/types/estoque.ts.
+create table if not exists materiais (
+  id             uuid primary key default gen_random_uuid(),
+  nome           text not null,
+  unidade        text not null default 'un',
+  quantidade     numeric(18,6) not null default 0 check (quantidade >= 0),
+  valor_unitario numeric(14,4) not null default 0 check (valor_unitario >= 0),
+  created_at     timestamptz not null default now()
+);
+
 alter table materiais
   add column if not exists insumo_id uuid references insumos(id) on delete set null;
 

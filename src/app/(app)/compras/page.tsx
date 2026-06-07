@@ -9,6 +9,8 @@ import type {
   AuditoriaLog,
   MetricasCompras,
 } from '@/types/compras'
+import type { Obra } from '@/types'
+import { getObras } from '@/services/obraService'
 import {
   getSolicitacoes,
   getAllCotacoes,
@@ -121,6 +123,7 @@ export default function ComprasPage() {
   const [modalAberto, setModalAberto] = useState(false)
 
   const [metricas, setMetricas] = useState<MetricasCompras>(METRICAS_VAZIO)
+  const [obras, setObras] = useState<Obra[]>([])
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoCompra[]>([])
   const [cotacoes, setCotacoes] = useState<CotacaoFornecedor[]>([])
   const [pedidos, setPedidos] = useState<PedidoCompra[]>([])
@@ -178,6 +181,11 @@ export default function ComprasPage() {
     return () => {
       active = false
     }
+  }, [])
+
+  // Lista de obras (para resolver nomes de origem/destino nas listas)
+  useEffect(() => {
+    getObras().then(setObras).catch(() => {})
   }, [])
 
     // Recarrega logs ao entrar na aba de auditoria
@@ -299,6 +307,9 @@ export default function ComprasPage() {
 
   // ── Dados derivados ───────────────────────────────────────────────────────
 
+  const obrasById: Record<string, string> = {}
+  obras.forEach((o) => { obrasById[o.id] = o.name })
+
   const pendentes = solicitacoes.filter((s) => s.status === 'pendente').length
 
   const pedidosCotacaoIds = new Set(
@@ -411,6 +422,7 @@ export default function ComprasPage() {
               {activeTab === 'solicitacoes' && (
                 <SolicitacaoList
                   data={solicitacoes}
+                  obrasById={obrasById}
                   onCotar={handleCotar}
                   onVerDetalhes={() => {}}
                   onNovaSolicitacao={() => setModalAberto(true)}
@@ -441,6 +453,7 @@ export default function ComprasPage() {
               {activeTab === 'entregas' && (
                 <EntregaList
                   data={entregasAtivas}
+                  obrasById={obrasById}
                   onConfirmar={handleConfirmarEntrega}
                 />
               )}

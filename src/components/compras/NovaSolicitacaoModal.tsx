@@ -1,10 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import type { SolicitacaoCompra, UrgenciaSolicitacao } from '@/types/compras'
+import type { SolicitacaoCompra, UrgenciaSolicitacao, DestinoEntrega } from '@/types/compras'
 import type { Insumo } from '@/types/insumo'
+import type { Obra, PlanilhaItem } from '@/types'
 import { createSolicitacao } from '@/services/comprasService'
 import { getInsumos } from '@/services/insumoService'
+import { getObras } from '@/services/obraService'
+import { getItensByObra } from '@/services/planilhaService'
 
 interface Props {
   aberto: boolean
@@ -52,6 +55,9 @@ type Campos = {
   observacoes: string
   obra_id: string
   insumo_id: string
+  entrega_tipo: DestinoEntrega
+  entrega_obra_id: string
+  planilha_item_id: string
 }
 
 const VAZIO: Campos = {
@@ -65,6 +71,9 @@ const VAZIO: Campos = {
   observacoes: '',
   obra_id: '',
   insumo_id: '',
+  entrega_tipo: 'deposito',
+  entrega_obra_id: '',
+  planilha_item_id: '',
 }
 
 function InputField({
@@ -108,6 +117,11 @@ export function NovaSolicitacaoModal({ aberto, onFechar, onCriada }: Props) {
   const [showPicker, setShowPicker] = useState(false)
   const [buscaInsumo, setBuscaInsumo] = useState('')
 
+  // Obras (origem + destino) e itens de Custo Real da obra de destino
+  const [obras, setObras] = useState<Obra[]>([])
+  const [itensObra, setItensObra] = useState<PlanilhaItem[]>([])
+  const [loadingItens, setLoadingItens] = useState(false)
+
   // Fecha com Esc
   useEffect(() => {
     if (!aberto) return
@@ -129,18 +143,39 @@ export function NovaSolicitacaoModal({ aberto, onFechar, onCriada }: Props) {
       setInsumoSel(null)
       setShowPicker(false)
       setBuscaInsumo('')
+      setItensObra([])
     }
   }, [aberto])
 
-  // Carrega o catálogo de insumos ativos ao abrir
+  // Carrega o catálogo de insumos ativos e a lista de obras ao abrir
   useEffect(() => {
     if (!aberto) return
     let active = true
     getInsumos().then((rows) => {
       if (active) setCatalogo(rows.filter((i) => i.ativo))
     })
+    getObras().then((rows) => {
+      if (active) setObras(rows)
+    })
     return () => { active = false }
   }, [aberto])
+
+  // Carrega os itens de Custo Real da obra de destino (para escolher onde lançar
+  // o gasto). Só quando o destino é uma obra específica.
+  useEffect(() => {
+    if (!aberto) return
+    if (campos.entrega_tipo !== 'obra' || !campos.entrega_obra_id) {
+      setItensObra([])
+      return
+    }
+    let active = true
+    setLoadingItens(true)
+    getItensByObra(campos.entrega_obra_id, 'custo_real')
+      .then((rows) => { if (active) setItensObra(rows) })
+      .catch(() => { if (active) setItensObra([]) })
+      .finally(() => { if (active) setLoadingItens(false) })
+    return () => { active = false }
+  }, [aberto, campos.entrega_tipo, campos.entrega_obra_id])
 
   // Vincula um insumo do catálogo: preenche descrição e trava a unidade.
   function selecionarInsumo(ins: Insumo) {
@@ -171,6 +206,24 @@ export function NovaSolicitacaoModal({ aberto, onFechar, onCriada }: Props) {
     return i.codigo.toLowerCase().includes(q) || i.descricao.toLowerCase().includes(q)
   })
 
+  // Alterna o destino. Ao escolher "obra", já sugere a obra solicitante (origem).
+  function setDestino(tipo: DestinoEntrega) {
+    setCampos((prev) => ({
+      ...prev,
+      entrega_tipo: tipo,
+      entrega_obra_id:
+        tipo === 'obra' && !prev.entrega_obra_id ? prev.obra_id : prev.entrega_obra_id,
+      planilha_item_id: tipo === 'obra' ? prev.planilha_item_id : '',
+    }))
+    setErros((prev) => ({ ...prev, entrega_obra_id: '', planilha_item_id: '' }))
+  }
+
+  // Troca a obra de destino: zera o item escolhido (era de outra obra).
+  function setObraDestino(obraId: string) {
+    setCampos((prev) => ({ ...prev, entrega_obra_id: obraId, planilha_item_id: '' }))
+    setErros((prev) => ({ ...prev, entrega_obra_id: '', planilha_item_id: '' }))
+  }
+
   function set(campo: keyof Campos, valor: string) {
     setCampos((prev) => ({ ...prev, [campo]: valor }))
     if (erros[campo]) setErros((prev) => ({ ...prev, [campo]: '' }))
@@ -183,6 +236,10 @@ export function NovaSolicitacaoModal({ aberto, onFechar, onCriada }: Props) {
     if (!campos.quantidade || Number(campos.quantidade) <= 0) novosErros.quantidade = 'Quantidade inválida'
     if (!campos.data_necessaria) novosErros.data_necessaria = 'Informe a data necessária'
     if (!campos.solicitante.trim()) novosErros.solicitante = 'Informe o solicitante'
+    if (campos.entrega_tipo === 'obra') {
+      if (!campos.entrega_obra_id) novosErros.entrega_obra_id = 'Selecione a obra de destino'
+      if (!campos.planilha_item_id) novosErros.planilha_item_id = 'Selecione o item de Custo Real'
+    }
     setErros(novosErros)
     return Object.keys(novosErros).length === 0
   }
@@ -192,6 +249,7 @@ export function NovaSolicitacaoModal({ aberto, onFechar, onCriada }: Props) {
     setSalvando(true)
     setErroGeral(null)
     try {
+      const ehObra = campos.entrega_tipo === 'obra'
       const nova = await createSolicitacao({
         descricao: campos.descricao.trim(),
         categoria: campos.categoria,
@@ -201,11 +259,24 @@ export function NovaSolicitacaoModal({ aberto, onFechar, onCriada }: Props) {
         data_necessaria: campos.data_necessaria,
         solicitante: campos.solicitante.trim(),
         observacoes: campos.observacoes.trim() || undefined,
-        obra_id: campos.obra_id || 'default',
+        obra_id: campos.obra_id || undefined,
         insumo_id: campos.insumo_id || undefined,
+        entrega_tipo: campos.entrega_tipo,
+        entrega_obra_id: ehObra ? campos.entrega_obra_id || undefined : undefined,
+        planilha_item_id: ehObra ? campos.planilha_item_id || undefined : undefined,
         status: 'pendente',
       })
-      onCriada(nova)
+      // Enriquece com nomes p/ exibição imediata (o insert não devolve os joins).
+      onCriada({
+        ...nova,
+        obra_nome: obras.find((o) => o.id === campos.obra_id)?.name,
+        entrega_obra_nome: ehObra
+          ? obras.find((o) => o.id === campos.entrega_obra_id)?.name
+          : undefined,
+        planilha_item_descricao: ehObra
+          ? itensObra.find((i) => i.id === campos.planilha_item_id)?.descricao
+          : undefined,
+      })
       onFechar()
     } catch (err) {
       console.error(err)
@@ -300,7 +371,9 @@ export function NovaSolicitacaoModal({ aberto, onFechar, onCriada }: Props) {
                               <span className="truncate text-[12px] text-zinc-300">
                                 <span className="font-mono text-zinc-500">{ins.codigo}</span> {ins.descricao}
                               </span>
-                              <span className="shrink-0 text-[10px] text-zinc-500">{ins.unidade}</span>
+                              <span className="shrink-0 text-[10px] text-zinc-500">
+                                {ins.unidade} · R$ {ins.valor_unitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </span>
                             </button>
                           ))
                         )}
@@ -310,6 +383,96 @@ export function NovaSolicitacaoModal({ aberto, onFechar, onCriada }: Props) {
                 </>
               )}
             </InputField>
+
+            {/* Obra solicitante (origem) */}
+            <InputField label="Obra solicitante (origem)">
+              <div className="relative">
+                <select
+                  value={campos.obra_id}
+                  onChange={(e) => set('obra_id', e.target.value)}
+                  className={selectCls}
+                >
+                  <option value="">Geral / Empresa (sem obra)</option>
+                  {obras.map((o) => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+                <svg className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-500" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>
+              </div>
+            </InputField>
+
+            {/* Destino da entrega */}
+            <InputField label="Destino da entrega" required>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  data-sel={campos.entrega_tipo === 'deposito'}
+                  onClick={() => setDestino('deposito')}
+                  className="rounded-lg border border-zinc-700 px-3 py-2.5 text-left transition-all data-[sel=true]:border-indigo-500 data-[sel=true]:bg-indigo-500/10"
+                >
+                  <span className="block text-[12px] font-medium text-zinc-200">Depósito (empresa)</span>
+                  <span className="text-[9px] text-zinc-500">Entra no estoque central</span>
+                </button>
+                <button
+                  type="button"
+                  data-sel={campos.entrega_tipo === 'obra'}
+                  onClick={() => setDestino('obra')}
+                  className="rounded-lg border border-zinc-700 px-3 py-2.5 text-left transition-all data-[sel=true]:border-indigo-500 data-[sel=true]:bg-indigo-500/10"
+                >
+                  <span className="block text-[12px] font-medium text-zinc-200">Obra específica</span>
+                  <span className="text-[9px] text-zinc-500">Vira custo da obra</span>
+                </button>
+              </div>
+            </InputField>
+
+            {/* Detalhes do destino = obra */}
+            {campos.entrega_tipo === 'obra' && (
+              <div className="space-y-4 rounded-lg border border-zinc-800 bg-zinc-800/30 p-3">
+                <InputField label="Obra de destino" required error={erros.entrega_obra_id}>
+                  <div className="relative">
+                    <select
+                      value={campos.entrega_obra_id}
+                      onChange={(e) => setObraDestino(e.target.value)}
+                      className={`${selectCls} ${erros.entrega_obra_id ? 'border-red-500/60' : ''}`}
+                    >
+                      <option value="">Selecionar obra...</option>
+                      {obras.map((o) => (
+                        <option key={o.id} value={o.id}>{o.name}</option>
+                      ))}
+                    </select>
+                    <svg className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-500" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>
+                  </div>
+                </InputField>
+
+                <InputField label="Item do Custo Real (onde lançar o gasto)" required error={erros.planilha_item_id}>
+                  {!campos.entrega_obra_id ? (
+                    <p className="text-[11px] text-zinc-600">Selecione a obra de destino primeiro.</p>
+                  ) : loadingItens ? (
+                    <p className="text-[11px] text-zinc-500">Carregando itens...</p>
+                  ) : itensObra.length === 0 ? (
+                    <p className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-400">
+                      Esta obra não tem itens de Custo Real. Libere/cadastre o Custo Real da obra para poder lançar o gasto.
+                    </p>
+                  ) : (
+                    <div className="relative">
+                      <select
+                        value={campos.planilha_item_id}
+                        onChange={(e) => set('planilha_item_id', e.target.value)}
+                        className={`${selectCls} ${erros.planilha_item_id ? 'border-red-500/60' : ''}`}
+                      >
+                        <option value="">Selecionar item...</option>
+                        {itensObra.map((it) => (
+                          <option key={it.id} value={it.id}>
+                            {it.codigo ? `${it.codigo} · ` : ''}{it.descricao}
+                          </option>
+                        ))}
+                      </select>
+                      <svg className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-500" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>
+                    </div>
+                  )}
+                </InputField>
+              </div>
+            )}
 
             {/* Descrição */}
             <InputField label="Material / Serviço" required error={erros.descricao}>

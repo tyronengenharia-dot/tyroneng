@@ -7,7 +7,18 @@ import { formatarData, calcularAtraso } from '@/lib/formatters'
 
 interface Props {
   data: Entrega[]
+  obrasById?: Record<string, string>
   onConfirmar?: (id: string) => void
+}
+
+// Destino da entrega (lido do pedido vinculado): "Obra: <nome>" ou "Depósito".
+function destinoEntregaLabel(e: Entrega, obrasById?: Record<string, string>): string {
+  const p = e.pedido
+  if (p?.entrega_tipo === 'obra') {
+    const nome = p.entrega_obra_id ? obrasById?.[p.entrega_obra_id] : undefined
+    return nome ? `Obra: ${nome}` : 'Obra'
+  }
+  return 'Depósito'
 }
 
 const PROGRESSO: Record<StatusEntrega, number> = {
@@ -34,15 +45,18 @@ const FILTROS: { label: string; value: StatusEntrega | 'todas' }[] = [
 
 function ModalConfirmarEntrega({
   entrega,
+  obrasById,
   carregando,
   onConfirmar,
   onCancelar,
 }: {
   entrega: Entrega
+  obrasById?: Record<string, string>
   carregando: boolean
   onConfirmar: () => void
   onCancelar: () => void
 }) {
+  const ehObra = entrega.pedido?.entrega_tipo === 'obra'
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-2xl border border-zinc-700/60 bg-zinc-900 shadow-2xl">
@@ -76,10 +90,18 @@ function ModalConfirmarEntrega({
                 <p className="mt-0.5 text-[11px] text-zinc-300">{formatarData(entrega.data_prevista)}</p>
               </div>
             </div>
+            <div>
+              <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-600">Destino</p>
+              <p className="mt-0.5 text-[11px] text-zinc-300">{destinoEntregaLabel(entrega, obrasById)}</p>
+            </div>
           </div>
 
           <p className="mt-3 text-[11px] text-zinc-500 leading-relaxed">
-            Ao confirmar, esta entrega será movida para a aba <span className="text-zinc-300 font-medium">Concluídos</span> e o ciclo de compra será encerrado.
+            {ehObra ? (
+              <>Ao confirmar, o material será lançado como <span className="text-zinc-300 font-medium">Custo Real</span> da obra (parcela pendente) e a entrega irá para <span className="text-zinc-300 font-medium">Concluídos</span>.</>
+            ) : (
+              <>Ao confirmar, o material dará entrada no <span className="text-zinc-300 font-medium">estoque do depósito</span> e a entrega irá para <span className="text-zinc-300 font-medium">Concluídos</span>.</>
+            )}
           </p>
         </div>
 
@@ -114,7 +136,7 @@ function ModalConfirmarEntrega({
   )
 }
 
-export function EntregaList({ data, onConfirmar }: Props) {
+export function EntregaList({ data, obrasById, onConfirmar }: Props) {
   const [filtro, setFiltro] = useState<StatusEntrega | 'todas'>('todas')
   const [confirmandoId, setConfirmandoId] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(false)
@@ -228,7 +250,8 @@ export function EntregaList({ data, onConfirmar }: Props) {
                       </div>
                       <p className="mt-0.5 text-[11px] text-zinc-500">
                         {e.fornecedor ?? e.pedido?.fornecedor} ·{' '}
-                        Previsto {formatarData(e.data_prevista)}
+                        Previsto {formatarData(e.data_prevista)} ·{' '}
+                        <span className="text-zinc-400">{destinoEntregaLabel(e, obrasById)}</span>
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -291,6 +314,7 @@ export function EntregaList({ data, onConfirmar }: Props) {
       {entregaConfirmando && (
         <ModalConfirmarEntrega
           entrega={entregaConfirmando}
+          obrasById={obrasById}
           carregando={carregando}
           onConfirmar={handleConfirmarEntrega}
           onCancelar={() => setConfirmandoId(null)}
