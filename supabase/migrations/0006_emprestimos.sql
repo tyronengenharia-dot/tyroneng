@@ -248,7 +248,14 @@ select
   ), 0)::numeric(14,2)                                          as encargos_atraso,
   count(p.id) filter (where p.vencimento < current_date
                         and p.valor_pago < p.valor_total)::int  as qtd_atrasadas,
-  min(p.vencimento) filter (where p.valor_pago < p.valor_total) as proxima_parcela
+  min(p.vencimento) filter (where p.valor_pago < p.valor_total) as proxima_parcela,
+  -- garantias (subconsultas escalares para não inflar os agregados de parcelas)
+  (select count(*) from emprestimo_garantias g
+     where g.emprestimo_id = e.id)::int                          as qtd_garantias,
+  coalesce((select sum(g.valor_estimado) from emprestimo_garantias g
+     where g.emprestimo_id = e.id), 0)::numeric(14,2)            as garantias_valor,
+  (select count(*) from emprestimo_garantias g
+     where g.emprestimo_id = e.id and g.situacao = 'alienado')::int as garantias_alienadas
 from emprestimos e
 left join emprestimo_parcelas p on p.emprestimo_id = e.id
 group by e.id;

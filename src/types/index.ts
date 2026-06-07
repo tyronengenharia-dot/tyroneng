@@ -47,6 +47,8 @@ export type CustoRealPagamento = {
   id: string
   planilha_item_id: string
   obra_id: string
+  // Conta bancária de onde a saída saiu (obrigatória quando status='pago').
+  conta_id?: string | null
   descricao?: string | null
   valor: number
   data?: string | null
@@ -88,6 +90,13 @@ export type MedicaoBoletim = {
   data_medicao: string
   status: MedicaoBoletimStatus
   observacao?: string | null
+  // Recebimento (preenchido quando status='pago'): a medição paga é receita
+  // realizada e entra numa conta bancária, comprovada.
+  conta_id?: string | null
+  data_pagamento?: string | null
+  forma_pagamento?: string | null
+  comprovante_url?: string | null
+  comprovante_path?: string | null
   created_at?: string
 }
 

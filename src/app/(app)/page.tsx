@@ -139,6 +139,10 @@ async function fetchDashboard(): Promise<DashboardData> {
   const fimSemanaISO = fimSemana.toISOString()
   const em30diasISO = em30dias.toISOString()
 
+  // A view consolidada usa coluna `data` do tipo date — comparar com limites YYYY-MM-DD.
+  const hojeDate = hojeISO.slice(0, 10)
+  const fimSemanaDate = fimSemanaISO.slice(0, 10)
+
   const [
     { data: eventos },
     { data: obras },
@@ -165,14 +169,15 @@ async function fetchDashboard(): Promise<DashboardData> {
       .order('progresso', { ascending: false })
       .limit(6),
 
-    // Contas a pagar na semana
+    // Contas a pagar na semana — saídas previstas do caixa consolidado
     supabase
-      .from('financeiro')
-      .select('id, descricao, valor, vencimento, status, fornecedor')
-      .in('status', ['pendente', 'em_aberto', 'aberto'])
-      .gte('vencimento', hojeISO)
-      .lte('vencimento', fimSemanaISO)
-      .order('vencimento', { ascending: true })
+      .from('movimentacoes_consolidadas')
+      .select('origem_id, descricao, valor, data, beneficiario')
+      .eq('tipo', 'saida')
+      .eq('realizado', false)
+      .gte('data', hojeDate)
+      .lte('data', fimSemanaDate)
+      .order('data', { ascending: true })
       .limit(5),
 
     // Licitações abertas com prazo próximo
@@ -207,7 +212,21 @@ async function fetchDashboard(): Promise<DashboardData> {
       .eq('status', 'ativo'),
   ])
 
-  const contasLista = contas ?? []
+  const contasRaw = (contas ?? []) as {
+    origem_id: string
+    descricao: string | null
+    valor: number
+    data: string | null
+    beneficiario: string | null
+  }[]
+  const contasLista: Conta[] = contasRaw.map(c => ({
+    id: c.origem_id,
+    descricao: c.descricao ?? '',
+    valor: Number(c.valor) || 0,
+    vencimento: c.data ?? '',
+    status: 'pendente',
+    fornecedor: c.beneficiario ?? undefined,
+  }))
   const comprasLista = compras ?? []
 
   const total_contas_semana = contasLista.reduce((acc, c) => acc + (c.valor ?? 0), 0)

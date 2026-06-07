@@ -150,6 +150,29 @@ export async function deleteBoletim(id: string): Promise<boolean> {
   return true
 }
 
+// ── Comprovante (foto) no bucket "comprovantes" ──────────────────────────────
+
+export async function uploadComprovante(
+  file: File,
+  obraId: string,
+): Promise<{ url: string; path: string }> {
+  const ext = file.name.split('.').pop() || 'jpg'
+  const path = `${obraId}/med-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+  const { error } = await supabase.storage
+    .from('comprovantes')
+    .upload(path, file, { cacheControl: '3600', upsert: false })
+
+  if (error) throw new Error(`Erro no upload do comprovante: ${error.message}`)
+
+  const { data } = supabase.storage.from('comprovantes').getPublicUrl(path)
+  return { url: data.publicUrl, path }
+}
+
+export async function removeComprovante(path: string): Promise<void> {
+  await supabase.storage.from('comprovantes').remove([path])
+}
+
 // ── Itens de um boletim ──────────────────────────────────────────────────────
 
 export async function getMedicaoItens(boletim_id: string): Promise<MedicaoItem[]> {

@@ -9,7 +9,9 @@ import {
   type PagamentoResumo,
 } from '@/services/custoRealPagamentoService'
 import { getPlanilhasStatus, planilhaEditavel } from '@/services/planilhaEstadoService'
+import { getContas } from '@/services/bancoService'
 import { PlanilhaItem } from '@/types'
+import { ContaComSaldo } from '@/types/banco'
 import { fmtCurrency } from '@/lib/utils'
 
 const itemTotal = (it: PlanilhaItem) =>
@@ -21,6 +23,7 @@ const itemTotal = (it: PlanilhaItem) =>
 export function CustoRealTab({ obra_id }: { obra_id: string }) {
   const [pagMap, setPagMap] = useState<Record<string, PagamentoResumo>>({})
   const [editavel, setEditavel] = useState(true)
+  const [contas, setContas] = useState<ContaComSaldo[]>([])
   const [modalItem, setModalItem] = useState<PlanilhaItem | null>(null)
 
   const reloadPagamentos = useCallback(async () => {
@@ -30,14 +33,17 @@ export function CustoRealTab({ obra_id }: { obra_id: string }) {
 
   useEffect(() => {
     let active = true
-    Promise.all([getPagamentosByObra(obra_id), getPlanilhasStatus(obra_id)]).then(
-      ([list, headers]) => {
-        if (!active) return
-        setPagMap(mapaPagamentosPorItem(list))
-        const h = headers.find(x => x.tipo === 'custo_real')
-        setEditavel(h ? planilhaEditavel('custo_real', h.status) : true)
-      },
-    )
+    Promise.all([
+      getPagamentosByObra(obra_id),
+      getPlanilhasStatus(obra_id),
+      getContas(),
+    ]).then(([list, headers, contasList]) => {
+      if (!active) return
+      setPagMap(mapaPagamentosPorItem(list))
+      const h = headers.find(x => x.tipo === 'custo_real')
+      setEditavel(h ? planilhaEditavel('custo_real', h.status) : true)
+      setContas(contasList)
+    })
     return () => { active = false }
   }, [obra_id])
 
@@ -94,6 +100,7 @@ export function CustoRealTab({ obra_id }: { obra_id: string }) {
           item={modalItem}
           obra_id={obra_id}
           editavel={editavel}
+          contas={contas}
           onClose={() => setModalItem(null)}
           onChanged={reloadPagamentos}
         />

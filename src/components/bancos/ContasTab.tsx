@@ -12,7 +12,7 @@ import { ContaModal } from './ContaModal'
 interface Props {
   contas: ContaComSaldo[]
   onRefresh: () => void
-  onVerMovimentacoes: (contaId: string) => void
+  onVerMovimentacoes?: (contaId: string) => void
   onTransferir: () => void
 }
 
@@ -37,7 +37,7 @@ export function ContasTab({
   async function handleDelete(c: ContaComSaldo) {
     if (
       !confirm(
-        `Excluir a conta "${c.nome}"?\n\nTODAS as movimentações dela serão removidas. Esta ação não pode ser desfeita.`
+        `Excluir a conta "${c.nome}"?\n\nOs lançamentos gerais dela serão removidos; os pagamentos de obra/empréstimo apenas perdem o vínculo com esta conta. Esta ação não pode ser desfeita.`
       )
     )
       return
@@ -143,12 +143,14 @@ export function ContasTab({
                       <span className="text-amber-400/80"> · {c.qtd_previstos} previsto{c.qtd_previstos === 1 ? '' : 's'}</span>
                     )}
                   </span>
-                  <button
-                    onClick={() => onVerMovimentacoes(c.id)}
-                    className="inline-flex items-center gap-1 text-[11px] text-white/50 hover:text-white transition-colors"
-                  >
-                    <ListFilter size={12} /> Ver extrato
-                  </button>
+                  {onVerMovimentacoes && (
+                    <button
+                      onClick={() => onVerMovimentacoes(c.id)}
+                      className="inline-flex items-center gap-1 text-[11px] text-white/50 hover:text-white transition-colors"
+                    >
+                      <ListFilter size={12} /> Ver extrato
+                    </button>
+                  )}
                 </div>
               </div>
             )

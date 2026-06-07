@@ -245,6 +245,29 @@ export async function excluirTransferencia(
   return { error: null }
 }
 
+// ─── COMPROVANTE (bucket "comprovantes", reaproveitado) ──────────────────────
+// Usado pela página Financeiro ao lançar uma movimentação geral (não-obra).
+
+export async function uploadComprovante(
+  file: File,
+): Promise<{ url: string; path: string }> {
+  const ext = file.name.split('.').pop() || 'jpg'
+  const path = `geral/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+  const { error } = await supabase.storage
+    .from('comprovantes')
+    .upload(path, file, { cacheControl: '3600', upsert: false })
+
+  if (error) throw new Error(`Erro no upload do comprovante: ${error.message}`)
+
+  const { data } = supabase.storage.from('comprovantes').getPublicUrl(path)
+  return { url: data.publicUrl, path }
+}
+
+export async function removeComprovante(path: string): Promise<void> {
+  await supabase.storage.from('comprovantes').remove([path])
+}
+
 // ─── erros ───────────────────────────────────────────────────────────────────
 //  23505 = unique_violation · 23503 = foreign_key · P0001 = raise do RPC
 function mapBancoError(error: { code?: string; message?: string }): string {

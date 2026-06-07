@@ -131,6 +131,9 @@ export type EmprestimoResumo = Emprestimo & {
   encargos_atraso: number
   qtd_atrasadas: number
   proxima_parcela: string | null
+  qtd_garantias: number
+  garantias_valor: number
+  garantias_alienadas: number
   // join opcional com obra
   obra?: { id: string; name: string } | null
 }
@@ -150,6 +153,8 @@ export type EmprestimoParcela = {
   valor_encargos: number
   data_pagamento?: string | null
   forma_pagamento?: FormaPagamento | null
+  // Conta bancária de onde a parcela foi paga (obrigatória ao quitar).
+  conta_id?: string | null
   comprovante_url?: string | null
   comprovante_path?: string | null
   observacoes?: string | null
@@ -220,6 +225,8 @@ export type EmprestimoRateio = {
   valor: number
   data?: string | null
   status: EmprestimoRateioStatus
+  // Conta bancária onde o desembolso entrou (obrigatória quando 'recebido').
+  conta_id?: string | null
   comprovante_url?: string | null
   comprovante_path?: string | null
   created_at?: string

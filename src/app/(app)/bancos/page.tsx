@@ -2,25 +2,16 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { LoadingSpinner, KpiCard } from '@/components/ui'
-import {
-  getContas,
-  getCategorias,
-  getMovimentacoes,
-} from '@/services/bancoService'
-import { getObras } from '@/services/obraService'
-import {
-  ContaComSaldo,
-  BancoCategoria,
-  MovimentacaoComRelacoes,
-} from '@/types/banco'
-import { Obra } from '@/types'
+import { getContas, getCategorias } from '@/services/bancoService'
+import { getMovimentacoesConsolidadas } from '@/services/caixaService'
+import { ContaComSaldo, BancoCategoria } from '@/types/banco'
+import { MovimentacaoConsolidada } from '@/types/caixa'
 import { fmtCurrency } from '@/lib/utils'
 import { ContasTab } from '@/components/bancos/ContasTab'
-import { MovimentacoesTab } from '@/components/bancos/MovimentacoesTab'
 import { CategoriasTab } from '@/components/bancos/CategoriasTab'
 import { TransferenciaModal } from '@/components/bancos/TransferenciaModal'
 
-type Tab = 'contas' | 'movimentacoes' | 'categorias'
+type Tab = 'contas' | 'categorias'
 
 function TabButton({
   active,
@@ -49,36 +40,31 @@ function TabButton({
 export default function BancosPage() {
   const [contas, setContas] = useState<ContaComSaldo[]>([])
   const [categorias, setCategorias] = useState<BancoCategoria[]>([])
-  const [movimentacoes, setMovimentacoes] = useState<MovimentacaoComRelacoes[]>([])
-  const [obras, setObras] = useState<Obra[]>([])
+  const [movimentacoes, setMovimentacoes] = useState<MovimentacaoConsolidada[]>([])
   const [loading, setLoading] = useState(true)
 
   const [activeTab, setActiveTab] = useState<Tab>('contas')
-  const [contaFiltro, setContaFiltro] = useState<string | undefined>(undefined)
   const [transferOpen, setTransferOpen] = useState(false)
 
   async function refreshAll() {
-    const [c, cat, mov, obs] = await Promise.all([
+    const [c, cat, mov] = await Promise.all([
       getContas(),
       getCategorias(),
-      getMovimentacoes(),
-      getObras(),
+      getMovimentacoesConsolidadas(),
     ])
     setContas(c)
     setCategorias(cat)
     setMovimentacoes(mov)
-    setObras(obs)
   }
 
   useEffect(() => {
     let active = true
-    Promise.all([getContas(), getCategorias(), getMovimentacoes(), getObras()]).then(
-      ([c, cat, mov, obs]) => {
+    Promise.all([getContas(), getCategorias(), getMovimentacoesConsolidadas()]).then(
+      ([c, cat, mov]) => {
         if (!active) return
         setContas(c)
         setCategorias(cat)
         setMovimentacoes(mov)
-        setObras(obs)
         setLoading(false)
       }
     )
@@ -97,14 +83,14 @@ export default function BancosPage() {
     const saldoPrevisto = contas.reduce((a, c) => a + c.saldo_previsto, 0)
 
     const doMes = movimentacoes.filter(
-      m => m.data >= ini && m.data <= fim && m.status !== 'previsto'
+      m => m.realizado && m.data && m.data >= ini && m.data <= fim
     )
     const entradasMes = doMes
       .filter(m => m.tipo === 'entrada')
-      .reduce((a, m) => a + m.valor, 0)
+      .reduce((a, m) => a + (Number(m.valor) || 0), 0)
     const saidasMes = doMes
       .filter(m => m.tipo === 'saida')
-      .reduce((a, m) => a + m.valor, 0)
+      .reduce((a, m) => a + (Number(m.valor) || 0), 0)
 
     return {
       saldoConsolidado,
@@ -116,19 +102,15 @@ export default function BancosPage() {
     }
   }, [contas, movimentacoes])
 
-  function goToMovimentacoes(contaId?: string) {
-    setContaFiltro(contaId)
-    setActiveTab('movimentacoes')
-  }
-
   return (
     <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Bancos</h1>
         <p className="text-gray-400 text-sm">
-          Controle de gastos e saldo de cada central de conta da empresa — contas,
-          caixa, aplicações e transferências.
+          Centrais de conta da empresa — onde o dinheiro fica. O saldo de cada conta
+          é calculado pelas movimentações lançadas no Financeiro e nas obras (não se
+          lança movimentação aqui).
         </p>
       </div>
 
@@ -170,15 +152,6 @@ export default function BancosPage() {
               <TabButton active={activeTab === 'contas'} onClick={() => setActiveTab('contas')}>
                 Contas ({contas.length})
               </TabButton>
-              <TabButton
-                active={activeTab === 'movimentacoes'}
-                onClick={() => {
-                  setContaFiltro(undefined)
-                  setActiveTab('movimentacoes')
-                }}
-              >
-                Movimentações
-              </TabButton>
               <TabButton active={activeTab === 'categorias'} onClick={() => setActiveTab('categorias')}>
                 Categorias
               </TabButton>
@@ -189,20 +162,7 @@ export default function BancosPage() {
             <ContasTab
               contas={contas}
               onRefresh={refreshAll}
-              onVerMovimentacoes={goToMovimentacoes}
               onTransferir={() => setTransferOpen(true)}
-            />
-          )}
-
-          {activeTab === 'movimentacoes' && (
-            <MovimentacoesTab
-              movimentacoes={movimentacoes}
-              contas={contas}
-              categorias={categorias}
-              obras={obras}
-              onRefresh={refreshAll}
-              onTransferir={() => setTransferOpen(true)}
-              contaInicial={contaFiltro}
             />
           )}
 

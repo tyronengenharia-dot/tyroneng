@@ -9,11 +9,19 @@ import {
   criarBoletim,
   updateBoletim,
   salvarMedicaoItens,
+  uploadComprovante,
+  removeComprovante,
   ContratoBloco,
   MedidoPorItem,
 } from '@/services/medicaoService'
+import { getContas } from '@/services/bancoService'
 import { MedicaoBoletim, MedicaoBoletimStatus } from '@/types'
+import { ContaComSaldo } from '@/types/banco'
 import { Modal, Btn, Input, Select, LoadingSpinner } from '@/components/ui'
+import {
+  ContaComprovanteFields,
+  faltaContaOuComprovante,
+} from '@/components/financeiro/ContaComprovanteFields'
 import { fmt, fmtCurrency, fmtDateShort, cn } from '@/lib/utils'
 
 type Props = {
@@ -38,6 +46,14 @@ export function BoletimMedicaoModal({ obra_id, boletim, onClose, onSaved }: Prop
   const [anterior, setAnterior] = useState<MedidoPorItem>({})
   const [qty, setQty]         = useState<Record<string, string>>({})
 
+  // Recebimento (quando status='pago'): conta que recebeu + comprovante.
+  const [contas, setContas]   = useState<ContaComSaldo[]>([])
+  const [contaId, setContaId] = useState<string | null>(boletim?.conta_id ?? null)
+  const [comp, setComp] = useState<{ url: string | null; path: string | null }>({
+    url: boletim?.comprovante_url ?? null,
+    path: boletim?.comprovante_path ?? null,
+  })
+
   const [form, setForm] = useState({
     periodo:      boletim?.periodo ?? fmtDateShort(new Date().toISOString().slice(0, 10)),
     data_medicao: boletim?.data_medicao ?? new Date().toISOString().slice(0, 10),
@@ -52,13 +68,15 @@ export function BoletimMedicaoModal({ obra_id, boletim, onClose, onSaved }: Prop
       getContratoMedicao(obra_id),
       getMedidoPorItem(obra_id, boletim?.id),
       boletim ? getMedicaoItens(boletim.id) : Promise.resolve([]),
-    ]).then(([contrato, ant, itens]) => {
+      getContas(),
+    ]).then(([contrato, ant, itens, contasList]) => {
       if (!active) return
       setBlocos(contrato.blocos)
       setAnterior(ant)
       const initial: Record<string, string> = {}
       for (const it of itens) initial[it.planilha_item_id] = String(it.quantidade)
       setQty(initial)
+      setContas(contasList)
       setLoading(false)
     })
     return () => { active = false }
@@ -83,6 +101,11 @@ export function BoletimMedicaoModal({ obra_id, boletim, onClose, onSaved }: Prop
   }
 
   async function handleSave() {
+    // Caixa unificado: medição paga = receita realizada → precisa de conta + comprovante.
+    if (form.status === 'pago' && faltaContaOuComprovante(contaId, comp.url)) {
+      toast.error('Para marcar a medição como paga, informe a conta que recebeu e anexe o comprovante.')
+      return
+    }
     setSaving(true)
     try {
       const linhas = itensContrato
@@ -97,11 +120,27 @@ export function BoletimMedicaoModal({ obra_id, boletim, onClose, onSaved }: Prop
         boletimId = id
       }
 
+      const recebimento =
+        form.status === 'pago'
+          ? {
+              conta_id: contaId,
+              data_pagamento: form.data_medicao || new Date().toISOString().slice(0, 10),
+              comprovante_url: comp.url,
+              comprovante_path: comp.path,
+            }
+          : {
+              conta_id: null,
+              data_pagamento: null,
+              comprovante_url: null,
+              comprovante_path: null,
+            }
+
       const okHeader = await updateBoletim(boletimId, {
         periodo:      form.periodo || null,
         data_medicao: form.data_medicao,
         status:       form.status,
         observacao:   form.observacao || null,
+        ...recebimento,
       })
       const okItens = await salvarMedicaoItens(boletimId, linhas)
 
@@ -163,11 +202,33 @@ export function BoletimMedicaoModal({ obra_id, boletim, onClose, onSaved }: Prop
               onChange={e => set('status', e.target.value)}
               options={[
                 { value: 'rascunho', label: 'Rascunho' },
-                { value: 'aprovado', label: 'Aprovado' },
-                { value: 'pago',     label: 'Pago' },
+                { value: 'aprovado', label: 'Aprovado (a receber)' },
+                { value: 'pago',     label: 'Pago (recebido)' },
               ]}
             />
           </div>
+
+          {form.status === 'pago' && (
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 space-y-2">
+              <p className="text-[11px] text-white/40">
+                Medição paga = receita realizada: informe a conta que recebeu e anexe o
+                comprovante.
+              </p>
+              <ContaComprovanteFields
+                contas={contas}
+                contaId={contaId}
+                onContaChange={setContaId}
+                comprovanteUrl={comp.url}
+                comprovantePath={comp.path}
+                onComprovanteChange={setComp}
+                upload={f => uploadComprovante(f, obra_id)}
+                removeStored={removeComprovante}
+                required
+                disabled={!editavel}
+                contaLabel="Conta que recebeu"
+              />
+            </div>
+          )}
 
           {itensContrato.length === 0 ? (
             <div className="py-10 text-center text-sm text-white/30">

@@ -28,12 +28,14 @@ type Props = {
   item: PlanilhaItem
   obra_id: string
   editavel: boolean
+  /** contas bancárias (centrais de conta) para vincular cada pagamento */
+  contas: { id: string; nome: string }[]
   onClose: () => void
   /** avisa o pai (Custo Real) que os pagamentos mudaram, para recarregar os totais */
   onChanged: () => void
 }
 
-export function PagamentosModal({ item, obra_id, editavel, onClose, onChanged }: Props) {
+export function PagamentosModal({ item, obra_id, editavel, contas, onClose, onChanged }: Props) {
   const [pagamentos, setPagamentos] = useState<CustoRealPagamento[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -107,9 +109,32 @@ export function PagamentosModal({ item, obra_id, editavel, onClose, onChanged }:
 
   async function handleRemoveFoto(p: CustoRealPagamento) {
     if (!editavel || !p.comprovante_path) return
+    if (p.status === 'pago') {
+      toast.error('Estorne o status (deixe de "Pago") antes de remover o comprovante.')
+      return
+    }
     await removeComprovante(p.comprovante_path)
     patchLocal(p.id, { comprovante_url: null, comprovante_path: null })
     await persist(p, { comprovante_url: null, comprovante_path: null })
+  }
+
+  // Regra do caixa unificado: só vira "Pago" (saída realizada) com conta + comprovante.
+  function trySetStatus(p: CustoRealPagamento, status: PagamentoStatus) {
+    if (status === 'pago') {
+      if (!p.conta_id) { toast.error('Escolha a conta bancária antes de marcar como pago.'); return }
+      if (!p.comprovante_url) { toast.error('Anexe o comprovante antes de marcar como pago.'); return }
+    }
+    patchLocal(p.id, { status })
+    persist(p, { status })
+  }
+
+  function handleContaChange(p: CustoRealPagamento, contaId: string | null) {
+    if (!contaId && p.status === 'pago') {
+      toast.error('Um pagamento pago precisa de conta. Estorne o status antes de remover a conta.')
+      return
+    }
+    patchLocal(p.id, { conta_id: contaId })
+    persist(p, { conta_id: contaId })
   }
 
   const resumo = resumoPagamentos(pagamentos)
@@ -172,6 +197,7 @@ export function PagamentosModal({ item, obra_id, editavel, onClose, onChanged }:
                   <th className="px-3 py-2 text-left text-[10px] font-semibold text-white/30 uppercase tracking-wider">Descrição</th>
                   <th className="px-3 py-2 text-right text-[10px] font-semibold text-white/30 uppercase tracking-wider w-32">Valor</th>
                   <th className="px-3 py-2 text-left text-[10px] font-semibold text-white/30 uppercase tracking-wider w-36">Data</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-white/30 uppercase tracking-wider w-36">Conta</th>
                   <th className="px-3 py-2 text-left text-[10px] font-semibold text-white/30 uppercase tracking-wider w-32">Status</th>
                   <th className="px-3 py-2 text-center text-[10px] font-semibold text-white/30 uppercase tracking-wider w-20">Comprov.</th>
                   <th className="w-8" />
@@ -180,7 +206,7 @@ export function PagamentosModal({ item, obra_id, editavel, onClose, onChanged }:
               <tbody>
                 {pagamentos.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-3 py-8 text-center text-white/30 text-xs">
+                    <td colSpan={7} className="px-3 py-8 text-center text-white/30 text-xs">
                       Nenhuma parcela lançada ainda.
                     </td>
                   </tr>
@@ -224,17 +250,33 @@ export function PagamentosModal({ item, obra_id, editavel, onClose, onChanged }:
                         />
                       </td>
 
+                      {/* Conta */}
+                      <td className="px-2 py-1">
+                        {editavel ? (
+                          <select
+                            className={cn(cellInput, 'cursor-pointer')}
+                            value={p.conta_id ?? ''}
+                            onChange={e => handleContaChange(p, e.target.value || null)}
+                          >
+                            <option value="" className="bg-[#111]">—</option>
+                            {contas.map(c => (
+                              <option key={c.id} value={c.id} className="bg-[#111]">{c.nome}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-xs text-white/60">
+                            {contas.find(c => c.id === p.conta_id)?.nome ?? '—'}
+                          </span>
+                        )}
+                      </td>
+
                       {/* Status */}
                       <td className="px-2 py-1">
                         {editavel ? (
                           <select
                             className={cn(cellInput, 'cursor-pointer')}
                             value={p.status}
-                            onChange={e => {
-                              const status = e.target.value as PagamentoStatus
-                              patchLocal(p.id, { status })
-                              persist(p, { status })
-                            }}
+                            onChange={e => trySetStatus(p, e.target.value as PagamentoStatus)}
                           >
                             {STATUS_OPTS.map(o => (
                               <option key={o.value} value={o.value} className="bg-[#111]">{o.label}</option>

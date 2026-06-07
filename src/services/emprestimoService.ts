@@ -135,6 +135,7 @@ function parcelaRow(p: EmprestimoParcela) {
     valor_encargos: p.valor_encargos ?? 0,
     data_pagamento: p.data_pagamento ?? null,
     forma_pagamento: p.forma_pagamento ?? null,
+    conta_id: p.conta_id ?? null,
     comprovante_url: p.comprovante_url ?? null,
     comprovante_path: p.comprovante_path ?? null,
     observacoes: p.observacoes ?? null,
@@ -214,6 +215,7 @@ export async function registrarPagamento(
     valor_encargos?: number
     data_pagamento: string | null
     forma_pagamento: FormaPagamento | null
+    conta_id?: string | null
     comprovante_url?: string | null
     comprovante_path?: string | null
     observacoes?: string | null

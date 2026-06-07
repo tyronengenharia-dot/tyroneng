@@ -1,6 +1,6 @@
 'use client'
 
-import { Pencil, Trash2, ArrowUpRight, AlertTriangle, CalendarClock } from 'lucide-react'
+import { Pencil, Trash2, ArrowUpRight, AlertTriangle, CalendarClock, Shield, Percent } from 'lucide-react'
 import { ProgressBar } from '@/components/ui'
 import { EmprestimoResumo } from '@/types/emprestimo'
 import { categoriaLabels, statusClass, statusLabels } from '@/lib/emprestimoConstants'
@@ -18,6 +18,18 @@ export function EmprestimoCard({ emprestimo: e, obraNome, onOpen, onEdit, onDele
   const progresso =
     e.total_contratado > 0 ? Math.min(100, (e.total_pago / e.total_contratado) * 100) : 0
   const temAtraso = e.valor_em_atraso > 0.005
+  const temEncargos = e.encargos_atraso > 0.005
+
+  const taxaTxt =
+    e.categoria === 'consorcio'
+      ? e.taxa_admin_pct
+        ? `Tx. adm ${e.taxa_admin_pct}%`
+        : null
+      : e.regime === 'sem_juros'
+        ? 'Sem juros'
+        : e.taxa_juros_mensal > 0
+          ? `${e.taxa_juros_mensal}% a.m.`
+          : null
 
   return (
     <div className="group relative bg-[#111] border border-white/[0.08] rounded-2xl p-5 overflow-hidden hover:border-white/20 transition-colors">
@@ -62,6 +74,34 @@ export function EmprestimoCard({ emprestimo: e, obraNome, onOpen, onEdit, onDele
         </div>
       </div>
 
+      {/* chips: taxa + garantias */}
+      {(taxaTxt || e.qtd_garantias > 0) && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-4 -mt-1">
+          {taxaTxt && (
+            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-white/5 text-white/50 border border-white/10">
+              <Percent size={9} /> {taxaTxt}
+            </span>
+          )}
+          {e.qtd_garantias > 0 && (
+            <span
+              title={`${e.qtd_garantias} garantia(s)${e.garantias_valor > 0 ? ` · ${fmtCurrency(e.garantias_valor)} estimado` : ''}${
+                e.garantias_alienadas > 0 ? ` · ${e.garantias_alienadas} alienada(s)` : ''
+              }`}
+              className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md border ${
+                e.garantias_alienadas > 0
+                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                  : 'bg-white/5 text-white/50 border-white/10'
+              }`}
+            >
+              <Shield size={9} />
+              {e.garantias_alienadas > 0
+                ? `${e.garantias_alienadas} alienada${e.garantias_alienadas > 1 ? 's' : ''}`
+                : `${e.qtd_garantias} garantia${e.qtd_garantias > 1 ? 's' : ''}`}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* saldo devedor */}
       <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider">
         Saldo devedor
@@ -94,6 +134,9 @@ export function EmprestimoCard({ emprestimo: e, obraNome, onOpen, onEdit, onDele
           <span className="inline-flex items-center gap-1.5 text-[11px] text-red-400">
             <AlertTriangle size={12} />
             {fmtCurrency(e.valor_em_atraso)} em atraso
+            {temEncargos && (
+              <span className="text-red-400/60">+{fmtCurrency(e.encargos_atraso)} enc.</span>
+            )}
           </span>
         ) : e.proxima_parcela ? (
           <span className="inline-flex items-center gap-1.5 text-[11px] text-white/40">

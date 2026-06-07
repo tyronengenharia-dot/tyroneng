@@ -5,6 +5,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { Btn, LoadingSpinner } from '@/components/ui'
 import { EmprestimoRateio, EmprestimoRateioStatus } from '@/types/emprestimo'
 import { Obra } from '@/types'
+import { ContaComSaldo } from '@/types/banco'
 import {
   getRateios,
   createRateio,
@@ -14,6 +15,7 @@ import {
   removeAnexo,
 } from '@/services/emprestimoService'
 import { getObras } from '@/services/obraService'
+import { getContas } from '@/services/bancoService'
 import { fmtCurrency, cn } from '@/lib/utils'
 
 interface Props {
@@ -34,15 +36,17 @@ const cellInput =
 export function RateioObrasSection({ emprestimoId, valorPrincipal, onChanged }: Props) {
   const [rateios, setRateios] = useState<EmprestimoRateio[]>([])
   const [obras, setObras] = useState<Obra[]>([])
+  const [contas, setContas] = useState<ContaComSaldo[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     let active = true
-    Promise.all([getRateios(emprestimoId), getObras()]).then(([rs, os]) => {
+    Promise.all([getRateios(emprestimoId), getObras(), getContas()]).then(([rs, os, cs]) => {
       if (!active) return
       setRateios(rs)
       setObras(os)
+      setContas(cs)
       setLoading(false)
     })
     return () => { active = false }
@@ -69,7 +73,7 @@ export function RateioObrasSection({ emprestimoId, valorPrincipal, onChanged }: 
       descricao: '',
       valor: 0,
       data: null,
-      status: 'recebido',
+      status: 'previsto',
     })
     setBusy(false)
     if (error || !data) { alert(error ?? 'Erro ao adicionar destino'); return }
@@ -102,6 +106,25 @@ export function RateioObrasSection({ emprestimoId, valorPrincipal, onChanged }: 
     } finally {
       setBusy(false)
     }
+  }
+
+  // Caixa unificado: só vira "Recebido" (entrada realizada) com conta + comprovante.
+  function trySetStatus(r: EmprestimoRateio, status: EmprestimoRateioStatus) {
+    if (status === 'recebido') {
+      if (!r.conta_id) { alert('Escolha a conta que recebeu antes de marcar como recebido.'); return }
+      if (!r.comprovante_url) { alert('Anexe o comprovante antes de marcar como recebido.'); return }
+    }
+    patchLocal(r.id, { status })
+    persist(r, { status })
+  }
+
+  function handleContaChange(r: EmprestimoRateio, contaId: string | null) {
+    if (!contaId && r.status === 'recebido') {
+      alert('Um desembolso recebido precisa de conta. Mude o status antes de remover a conta.')
+      return
+    }
+    patchLocal(r.id, { conta_id: contaId })
+    persist(r, { conta_id: contaId })
   }
 
   if (loading) return <LoadingSpinner />
@@ -163,6 +186,7 @@ export function RateioObrasSection({ emprestimoId, valorPrincipal, onChanged }: 
                 <th className="px-3 py-2 text-left text-[10px] font-semibold text-white/30 uppercase tracking-wider">Descrição</th>
                 <th className="px-3 py-2 text-right text-[10px] font-semibold text-white/30 uppercase tracking-wider w-32">Valor</th>
                 <th className="px-3 py-2 text-left text-[10px] font-semibold text-white/30 uppercase tracking-wider w-36">Data</th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold text-white/30 uppercase tracking-wider w-36">Conta</th>
                 <th className="px-3 py-2 text-left text-[10px] font-semibold text-white/30 uppercase tracking-wider w-28">Status</th>
                 <th className="px-3 py-2 text-center text-[10px] font-semibold text-white/30 uppercase tracking-wider w-20">Comprov.</th>
                 <th className="w-8" />
@@ -222,16 +246,26 @@ export function RateioObrasSection({ emprestimoId, valorPrincipal, onChanged }: 
                     />
                   </td>
 
+                  {/* Conta */}
+                  <td className="px-2 py-1">
+                    <select
+                      className={cn(cellInput, 'cursor-pointer')}
+                      value={r.conta_id ?? ''}
+                      onChange={e => handleContaChange(r, e.target.value || null)}
+                    >
+                      <option value="" className="bg-[#111]">—</option>
+                      {contas.map(c => (
+                        <option key={c.id} value={c.id} className="bg-[#111]">{c.nome}</option>
+                      ))}
+                    </select>
+                  </td>
+
                   {/* Status */}
                   <td className="px-2 py-1">
                     <select
                       className={cn(cellInput, 'cursor-pointer')}
                       value={r.status}
-                      onChange={e => {
-                        const status = e.target.value as EmprestimoRateioStatus
-                        patchLocal(r.id, { status })
-                        persist(r, { status })
-                      }}
+                      onChange={e => trySetStatus(r, e.target.value as EmprestimoRateioStatus)}
                     >
                       {STATUS_OPTS.map(o => (
                         <option key={o.value} value={o.value} className="bg-[#111]">{o.label}</option>

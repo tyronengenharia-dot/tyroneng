@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Upload, FileText, X } from 'lucide-react'
 import { Modal, Input, Select, Btn } from '@/components/ui'
 import { Emprestimo, EmprestimoParcela, FormaPagamento } from '@/types/emprestimo'
+import { ContaComSaldo } from '@/types/banco'
 import { registrarPagamento, uploadAnexo } from '@/services/emprestimoService'
+import { getContas } from '@/services/bancoService'
 import { formaPagamentoOptions } from '@/lib/emprestimoConstants'
 import { encargosAtraso } from '@/lib/emprestimoCalc'
 import { fmtCurrency, fmtDate } from '@/lib/utils'
@@ -31,6 +33,16 @@ export function ParcelaPagamentoModal({ contrato, parcela, onClose, onSaved }: P
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
+  const [contas, setContas] = useState<ContaComSaldo[]>([])
+  const [contaId, setContaId] = useState<string | null>(
+    parcela.conta_id ?? contrato.conta_id ?? null,
+  )
+
+  useEffect(() => {
+    let active = true
+    getContas().then(cs => { if (active) setContas(cs) })
+    return () => { active = false }
+  }, [])
 
   const [form, setForm] = useState({
     valor_pago: (parcela.valor_pago || restante || parcela.valor_total).toString(),
@@ -45,6 +57,14 @@ export function ParcelaPagamentoModal({ contrato, parcela, onClose, onSaved }: P
   }
 
   async function salvar(valorPago: number, limpar = false) {
+    // Caixa unificado: pagar a parcela é uma saída de caixa → conta + comprovante.
+    if (!limpar) {
+      if (!contaId) { setError('Escolha a conta de onde a parcela foi paga.'); return }
+      if (!file && !parcela.comprovante_url) {
+        setError('Anexe o comprovante do pagamento.')
+        return
+      }
+    }
     setSaving(true)
     setError(null)
 
@@ -68,6 +88,7 @@ export function ParcelaPagamentoModal({ contrato, parcela, onClose, onSaved }: P
       valor_encargos: limpar ? 0 : num(form.valor_encargos),
       data_pagamento: limpar ? null : form.data_pagamento || hoje(),
       forma_pagamento: limpar ? null : form.forma_pagamento,
+      conta_id: limpar ? null : contaId,
       comprovante_url: limpar ? null : comprovante_url,
       comprovante_path: limpar ? null : comprovante_path,
       observacoes: form.observacoes.trim() || null,
@@ -188,12 +209,23 @@ export function ParcelaPagamentoModal({ contrato, parcela, onClose, onSaved }: P
         />
       </div>
 
-      <Select
-        label="Forma de pagamento"
-        options={formaPagamentoOptions}
-        value={form.forma_pagamento}
-        onChange={e => set('forma_pagamento', e.target.value as FormaPagamento)}
-      />
+      <div className="grid grid-cols-2 gap-4">
+        <Select
+          label="Forma de pagamento"
+          options={formaPagamentoOptions}
+          value={form.forma_pagamento}
+          onChange={e => set('forma_pagamento', e.target.value as FormaPagamento)}
+        />
+        <Select
+          label="Conta de saída *"
+          options={[
+            { value: '', label: 'Selecione a conta…' },
+            ...contas.map(c => ({ value: c.id, label: c.nome })),
+          ]}
+          value={contaId ?? ''}
+          onChange={e => setContaId(e.target.value || null)}
+        />
+      </div>
 
       {/* comprovante */}
       <div>

@@ -78,8 +78,8 @@ function montarMovimentacoes(
       origem: b.periodo ? `Medição · ${b.periodo}` : 'Medição',
       valor: Number(b.valor) || 0,
       statusKey: (b.status === 'pago' ? 'pago' : 'a_receber') as MovStatusKey,
-      data: b.data_medicao ?? null,
-      comprovante_url: null,
+      data: b.data_pagamento ?? b.data_medicao ?? null,
+      comprovante_url: b.comprovante_url ?? null,
     }))
 
   const saidas: Movimentacao[] = pagamentos.map(p => {
