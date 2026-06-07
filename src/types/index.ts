@@ -37,6 +37,25 @@ export type Financeiro = {
   comprovante_path?: string | null
 }
 
+// ─── CUSTO REAL — PAGAMENTOS (parcelas) ──────────────────────────────────────
+// O gasto é registrado aqui (não no Financeiro). Cada item do Custo Real pode
+// ter N pagamentos. pago = realizado; pendente/atrasado = comprometido.
+
+export type PagamentoStatus = 'pago' | 'pendente' | 'atrasado'
+
+export type CustoRealPagamento = {
+  id: string
+  planilha_item_id: string
+  obra_id: string
+  descricao?: string | null
+  valor: number
+  data?: string | null
+  status: PagamentoStatus
+  comprovante_url?: string | null
+  comprovante_path?: string | null
+  created_at?: string
+}
+
 // ─── MEDIÇÃO ─────────────────────────────────────────────────────────────────
 
 export type MedicaoStatus = 'aprovado' | 'em_analise' | 'pendente' | 'rejeitado'
