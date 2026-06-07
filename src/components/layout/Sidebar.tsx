@@ -15,6 +15,7 @@ const menu = [
   { name: 'Agenda',                href: '/agenda',            icon: '📅', roles: ['admin'] },
   { name: 'Financeiro',            href: '/financeiro',        icon: '💰', roles: ['admin'] },
   { name: 'Bancos',                href: '/bancos',            icon: '🏦', roles: ['admin'] },
+  { name: 'Empréstimos',           href: '/emprestimos',       icon: '🤝', roles: ['admin'] },
   { name: 'Gestão de Pessoas',     href: '/gestao-de-pessoas', icon: '👥', roles: ['admin'] },
   { name: 'Obras',                 href: '/obras',             icon: '🏗️', roles: ['admin','funcionario']  },
   { name: 'Licitações',            href: '/licitacao',         icon: '📋', roles: ['admin','gestor'] },
