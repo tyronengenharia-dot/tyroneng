@@ -2,6 +2,17 @@
 
 export type ObraStatus = 'andamento' | 'concluida' | 'atrasada'
 
+/** Dados do contrato da obra (persistidos em obras.contrato jsonb — mig 0014). Usados na capa do PDF de cronograma. */
+export type ObraContrato = {
+  numero?: string
+  objeto?: string
+  contratante?: string
+  contratada?: string
+  local?: string
+  valor?: number
+  dataAssinatura?: string // 'YYYY-MM-DD'
+}
+
 export type Obra = {
   id: string
   name: string
@@ -12,7 +23,18 @@ export type Obra = {
   start_date: string
   end_date?: string
   description?: string
+  contrato?: ObraContrato
   created_at?: string
+}
+
+/** Configuração única da empresa (tabela empresa_config — mig 0014). Responsável técnico p/ assinatura do PDF. */
+export type EmpresaConfig = {
+  id?: string
+  razao_social?: string | null
+  cnpj?: string | null
+  rt_nome?: string | null
+  rt_titulo?: string | null
+  rt_crea?: string | null
 }
 
 // ─── FINANCEIRO ──────────────────────────────────────────────────────────────
