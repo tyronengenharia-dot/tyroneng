@@ -22,6 +22,7 @@ export function ExportarCronogramaModal({ obra_id, etapas, onClose }: Props) {
   const [generating, setGenerating] = useState(false)
   const [mode, setMode]             = useState<PlanejamentoPdfMode>('completo')
   const [capa, setCapa]             = useState(true)
+  const [logoUrl, setLogoUrl]       = useState<string | undefined>(undefined)
 
   const [form, setForm] = useState({
     numero: '', objeto: '', contratante: '', contratada: 'Tyron Engenharia',
@@ -36,6 +37,7 @@ export function ExportarCronogramaModal({ obra_id, etapas, onClose }: Props) {
       if (!active) return
       const ct = o?.contrato ?? {}
       setObra(o)
+      setLogoUrl(cfg?.logo_url || undefined)
       setForm(f => ({
         ...f,
         numero:         ct.numero ?? '',
@@ -90,6 +92,7 @@ export function ExportarCronogramaModal({ obra_id, etapas, onClose }: Props) {
         capa,
         contrato,
         responsavel: { nome: form.rtNome || undefined, titulo: form.rtTitulo || undefined, crea: form.crea || undefined },
+        logoDataUrl: logoUrl,
       })
       onClose()
     } catch (e) {

@@ -26,6 +26,7 @@ const menu = [
   { name: 'Insumos',               href: '/insumos',           icon: '🧱', roles: ['admin','funcionario']  },
   { name: 'Serviços',              href: '/servicos',          icon: '🛠️', roles: ['admin','funcionario']  },
   { name: 'Referências',           href: '/referencias',       icon: '📑', roles: ['admin','funcionario']  },
+  { name: 'Configurações',         href: '/configuracoes',     icon: '⚙️', roles: ['admin'] },
 ]
 
 export default function Sidebar() {

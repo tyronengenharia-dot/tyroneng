@@ -99,15 +99,20 @@ const slug = (s: string) =>
 
 async function loadImageDataUrl(src: string): Promise<{ dataUrl: string; ratio: number } | null> {
   try {
-    const res = await fetch(src)
-    if (!res.ok) return null
-    const blob = await res.blob()
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const fr = new FileReader()
-      fr.onload = () => resolve(fr.result as string)
-      fr.onerror = reject
-      fr.readAsDataURL(blob)
-    })
+    let dataUrl: string
+    if (src.startsWith('data:')) {
+      dataUrl = src
+    } else {
+      const res = await fetch(src)
+      if (!res.ok) return null
+      const blob = await res.blob()
+      dataUrl = await new Promise<string>((resolve, reject) => {
+        const fr = new FileReader()
+        fr.onload = () => resolve(fr.result as string)
+        fr.onerror = reject
+        fr.readAsDataURL(blob)
+      })
+    }
     const ratio = await new Promise<number>(resolve => {
       const img = new window.Image()
       img.onload = () => resolve(img.width && img.height ? img.width / img.height : 1)
@@ -129,11 +134,13 @@ export async function exportPlanejamentoPdf(opts: {
   contrato?: ContratoInfo
   responsavel?: ResponsavelInfo
   capa?: boolean
+  /** Logo configurado da empresa (data URL). Cai no /logo-pdf.png embutido se ausente. */
+  logoDataUrl?: string
 }): Promise<void> {
   const { obra, etapas, mode, contrato, responsavel } = opts
   const capa = opts.capa !== false
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const logo = await loadImageDataUrl('/logo-pdf.png')
+  const logo = await loadImageDataUrl(opts.logoDataUrl || '/logo-pdf.png')
 
   const emitidoEm = new Date()
   const dataLabel = emitidoEm.toLocaleDateString('pt-BR')

@@ -37,9 +37,13 @@ create table if not exists empresa_config (
   rt_nome      text,   -- responsável técnico: nome
   rt_titulo    text,   -- ex.: 'Engenheiro Civil'
   rt_crea      text,   -- ex.: 'SP-123456789'
+  logo_url     text,   -- logo da empresa p/ os PDFs (data URL base64, ~256px)
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
+
+-- Reaplicável: se a tabela já existia sem a coluna logo_url.
+alter table empresa_config add column if not exists logo_url text;
 
 drop trigger if exists trg_empresa_config_updated on empresa_config;
 create trigger trg_empresa_config_updated before update on empresa_config

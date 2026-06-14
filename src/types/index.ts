@@ -35,6 +35,8 @@ export type EmpresaConfig = {
   rt_nome?: string | null
   rt_titulo?: string | null
   rt_crea?: string | null
+  /** Logo da empresa p/ os PDFs (data URL base64, ~256px). */
+  logo_url?: string | null
 }
 
 // ─── FINANCEIRO ──────────────────────────────────────────────────────────────
