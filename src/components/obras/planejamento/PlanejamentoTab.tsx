@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { getEtapasByObra, createEtapa, updateEtapa, deleteEtapa } from '@/services/etapaService'
+import { ExportarCronogramaModal } from './ExportarCronogramaModal'
 import { Etapa, EtapaStatus } from '@/types'
 import { Badge, Btn, EmptyState, LoadingSpinner, Modal, Input, Select, KpiCard } from '@/components/ui'
-import { fmtDate, cn } from '@/lib/utils'
+import { fmtDate, fmtCurrency, cn } from '@/lib/utils'
 
 type Props = { obra_id: string }
 
@@ -31,6 +32,7 @@ function EtapaModal({
     data_fim:             initial?.data_fim ?? '',
     percentual_fisico:    initial?.percentual_fisico?.toString() ?? '0',
     percentual_financeiro: initial?.percentual_financeiro?.toString() ?? '0',
+    valor:                initial?.valor?.toString() ?? '0',
     status:               initial?.status ?? 'planejada',
     predecessora_id:      initial?.predecessora_id ?? '',
     ordem:                initial?.ordem?.toString() ?? '1',
@@ -53,6 +55,7 @@ function EtapaModal({
       ),
       percentual_fisico: Number(form.percentual_fisico),
       percentual_financeiro: Number(form.percentual_financeiro),
+      valor: Number(form.valor) || 0,
       status: form.status as EtapaStatus,
       predecessora_id: form.predecessora_id || undefined,
       ordem: Number(form.ordem),
@@ -95,6 +98,12 @@ function EtapaModal({
         <Input label="% Financeiro" type="number" min="0" max="100"
           value={form.percentual_financeiro} onChange={e => set('percentual_financeiro', e.target.value)} />
       </div>
+
+      <Input label="Valor previsto da etapa (R$)" type="number" min="0" step="0.01"
+        value={form.valor} onChange={e => set('valor', e.target.value)} />
+      <p className="text-[11px] text-white/30 -mt-2">
+        Peso financeiro da etapa no contrato. Realizado = valor × % financeiro.
+      </p>
 
       <div className="grid grid-cols-2 gap-3">
         <Select label="Status" value={form.status} onChange={e => set('status', e.target.value)}
@@ -148,6 +157,7 @@ export function PlanejamentoTab({ obra_id }: Props) {
   const [etapas, setEtapas]   = useState<Etapa[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal]     = useState<'create' | Etapa | null>(null)
+  const [exportModalOpen, setExportModalOpen] = useState(false)
 
   async function load() {
     const data = await getEtapasByObra(obra_id)
@@ -177,6 +187,10 @@ export function PlanejamentoTab({ obra_id }: Props) {
   const concluidas  = etapas.filter(e => e.status === 'concluida').length
   const emAndamento = etapas.filter(e => e.status === 'em_andamento').length
   const atrasadas   = etapas.filter(e => e.status === 'atrasada').length
+
+  const valorTotal     = etapas.reduce((s, e) => s + (e.valor || 0), 0)
+  const valorRealizado = etapas.reduce((s, e) => s + (e.valor || 0) * (e.percentual_financeiro || 0) / 100, 0)
+  const temValores     = valorTotal > 0
 
   // Gantt date range
   const allDates = etapas.flatMap(e => [new Date(e.data_inicio), new Date(e.data_fim)])
@@ -209,11 +223,30 @@ export function PlanejamentoTab({ obra_id }: Props) {
         <KpiCard label="Atrasadas" value={atrasadas} variant="red" />
       </div>
 
+      {/* Resumo financeiro do cronograma (quando há valores por etapa) */}
+      {temValores && (
+        <div className="grid grid-cols-3 gap-3">
+          <KpiCard label="Valor previsto" value={fmtCurrency(valorTotal)} variant="neutral" />
+          <KpiCard label="Valor realizado" value={fmtCurrency(valorRealizado)}
+            sub={`${((valorRealizado / valorTotal) * 100).toFixed(1)}% do previsto`} variant="green" />
+          <KpiCard label="A realizar" value={fmtCurrency(valorTotal - valorRealizado)} variant="blue" />
+        </div>
+      )}
+
       {/* Gantt */}
       <div className="bg-[#0d0d0d] border border-white/[0.08] rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.08]">
           <p className="text-sm font-medium text-white/60">Cronograma Físico</p>
-          <Btn variant="primary" onClick={() => setModal('create')}>+ Etapa</Btn>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setExportModalOpen(true)}
+              disabled={etapas.length === 0}
+              className="px-3 py-1.5 text-xs font-medium bg-white/5 text-white/50 border border-white/10 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              Exportar PDF
+            </button>
+            <Btn variant="primary" onClick={() => setModal('create')}>+ Etapa</Btn>
+          </div>
         </div>
 
         {etapas.length === 0 ? (
@@ -312,6 +345,7 @@ export function PlanejamentoTab({ obra_id }: Props) {
               <th className="px-5 py-3 text-left text-[10px] font-semibold text-white/30 uppercase tracking-wider">Fim</th>
               <th className="px-5 py-3 text-left text-[10px] font-semibold text-white/30 uppercase tracking-wider">Duração</th>
               <th className="px-5 py-3 text-right text-[10px] font-semibold text-white/30 uppercase tracking-wider">% Físico</th>
+              <th className="px-5 py-3 text-right text-[10px] font-semibold text-white/30 uppercase tracking-wider">Valor prev.</th>
               <th className="px-5 py-3 text-left text-[10px] font-semibold text-white/30 uppercase tracking-wider">Status</th>
               <th className="px-5 py-3" />
             </tr>
@@ -335,6 +369,9 @@ export function PlanejamentoTab({ obra_id }: Props) {
                     <span className="text-xs font-mono text-white/40">{etapa.percentual_fisico}%</span>
                   </div>
                 </td>
+                <td className="px-5 py-3 text-right text-xs font-mono text-white/50">
+                  {etapa.valor ? fmtCurrency(etapa.valor) : <span className="text-white/20">—</span>}
+                </td>
                 <td className="px-5 py-3"><Badge value={etapa.status} /></td>
                 <td className="px-5 py-3">
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100">
@@ -355,6 +392,14 @@ export function PlanejamentoTab({ obra_id }: Props) {
           etapas={etapas}
           onClose={() => setModal(null)}
           onSuccess={load}
+        />
+      )}
+
+      {exportModalOpen && (
+        <ExportarCronogramaModal
+          obra_id={obra_id}
+          etapas={etapas}
+          onClose={() => setExportModalOpen(false)}
         />
       )}
     </div>

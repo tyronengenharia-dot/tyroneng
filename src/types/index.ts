@@ -123,6 +123,8 @@ export type Etapa = {
   duracao_dias: number
   percentual_fisico: number
   percentual_financeiro: number
+  /** Valor previsto (peso financeiro) da etapa em R$. Realizado = valor × %financ/100. (mig 0013) */
+  valor?: number
   predecessora_id?: string
   status: EtapaStatus
   created_at?: string
