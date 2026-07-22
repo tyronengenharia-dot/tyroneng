@@ -6,6 +6,7 @@ import {
   createSolicitacoesFromInsumos,
   getEstoquePorInsumo,
   type SolicitacaoInsumoInput,
+  type DestinoCompra,
 } from '@/services/comprasFromListaService'
 import { UrgenciaSolicitacao } from '@/types/compras'
 import { LinhaInsumo, TIPO_LABEL } from '@/lib/listaCompras'
@@ -18,6 +19,10 @@ type Props = {
   contexto: string
   insumos: LinhaInsumo[]
   dataNecessariaDefault?: string
+  /** destino da entrega. Padrão depósito; 'obra' lança no Custo Real do item. */
+  destino?: DestinoCompra
+  /** rótulo do destino obra (ex.: descrição do serviço) para exibição */
+  destinoLabel?: string
   onClose: () => void
   onDone: (criadas: number) => void
 }
@@ -30,8 +35,9 @@ const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
 // estoque, solicitando só a diferença. Ver comprasFromListaService.
 
 export function GerarSolicitacaoModal({
-  obra_id, obra_nome, contexto, insumos, dataNecessariaDefault, onClose, onDone,
+  obra_id, obra_nome, contexto, insumos, dataNecessariaDefault, destino, destinoLabel, onClose, onDone,
 }: Props) {
+  const isObra = destino?.tipo === 'obra'
   const [solicitante, setSolicitante] = useState('')
   const [urgencia, setUrgencia] = useState<UrgenciaSolicitacao>('media')
   const [dataNecessaria, setDataNecessaria] = useState(dataNecessariaDefault ?? '')
@@ -86,6 +92,7 @@ export function GerarSolicitacaoModal({
       urgencia, data_necessaria: dataNecessaria,
       observacoes: observacoes.trim() || undefined,
       insumos: payloadInsumos,
+      destino,
     })
     setSaving(false)
     if (error) { toast.error(error); return }
@@ -97,7 +104,7 @@ export function GerarSolicitacaoModal({
   return (
     <Modal
       title="Gerar solicitação de compra"
-      subtitle={`${contexto} · ${insumos.length} insumo(s) · destino depósito`}
+      subtitle={`${contexto} · ${insumos.length} insumo(s) · ${isObra ? `destino Custo Real${destinoLabel ? ` — ${destinoLabel}` : ''}` : 'destino depósito'}`}
       width="max-w-2xl"
       onClose={onClose}
       footer={
@@ -175,9 +182,10 @@ export function GerarSolicitacaoModal({
 
       <p className="text-[11px] text-white/30">
         Isto é o planejamento da compra (base: Custo Planejado). As solicitações entram no módulo de{' '}
-        <span className="font-medium text-white/50">Compras</span> como pendentes, com destino ao depósito. Ao
-        confirmar a entrega, o estoque e o preço de referência do insumo são atualizados; o gasto efetivo é
-        conciliado no Custo Real da obra.
+        <span className="font-medium text-white/50">Compras</span> como pendentes.{' '}
+        {isObra
+          ? 'Ao confirmar a entrega, o gasto é lançado como pagamento no item do Custo Real deste serviço.'
+          : 'Com destino ao depósito, a entrega atualiza o estoque e o preço de referência do insumo; o gasto efetivo é conciliado no Custo Real.'}
       </p>
     </Modal>
   )

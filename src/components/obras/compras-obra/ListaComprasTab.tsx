@@ -8,6 +8,8 @@ import {
   setLeadDias,
   type ListaComprasData,
 } from '@/services/listaComprasService'
+import { espelharPlanejadoNoCustoReal } from '@/services/custoRealMirrorService'
+import type { DestinoCompra } from '@/services/comprasFromListaService'
 import { getObraById } from '@/services/obraService'
 import { getEmpresaConfig } from '@/services/empresaService'
 import {
@@ -106,7 +108,14 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
   const [exporting, setExporting] = useState(false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [obraName, setObraName] = useState('Obra')
-  const [solic, setSolic] = useState<{ insumos: LinhaInsumo[]; data?: string; contexto: string } | null>(null)
+  const [espelhando, setEspelhando] = useState(false)
+  const [solic, setSolic] = useState<{
+    insumos: LinhaInsumo[]
+    data?: string
+    contexto: string
+    destino?: DestinoCompra
+    destinoLabel?: string
+  } | null>(null)
 
   const load = useCallback(async () => {
     const d = await getListaCompras(obra_id)
@@ -139,6 +148,9 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
   )
   const semEtapaCount = servicos.filter(s => !s.etapa_id || !etapas.some(e => e.id === s.etapa_id)).length
   const sourceEditavel = data?.sourceEditavel ?? true
+  const custoRealEditavel = data?.custoRealEditavel ?? false
+  const realMap = useMemo(() => data?.realItemPorPlanejado ?? {}, [data])
+  const espelhados = servicos.filter(s => realMap[s.item_id]).length
 
   async function handleAssign(item_id: string, etapa_id: string) {
     setData(prev => prev && {
@@ -153,6 +165,31 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
     if (!data?.etapaLinkDisponivel) return
     const { error } = await setLeadDias(obra_id, lead)
     if (error) toast.error(error)
+  }
+
+  async function handleEspelhar() {
+    setEspelhando(true)
+    const r = await espelharPlanejadoNoCustoReal(obra_id)
+    setEspelhando(false)
+    if (r.error) { toast.error(r.error); return }
+    const partes: string[] = []
+    if (r.itens) partes.push(`${r.itens} item(ns) criado(s)`)
+    if (r.jaExistiam) partes.push(`${r.jaExistiam} já existiam`)
+    if (r.puladosApagados) partes.push(`${r.puladosApagados} apagado(s) mantidos fora`)
+    toast.success(`Custo Real espelhado — ${partes.join(', ') || 'nada novo a copiar'}.`)
+    load()
+  }
+
+  function gerarCompraServico(s: ServicoExplodido) {
+    const realId = realMap[s.item_id]
+    if (!realId) { toast.error('Espelhe o plano no Custo Real antes de gerar a compra deste serviço.'); return }
+    if (s.insumos.length === 0) { toast.error('Este serviço não tem composição de insumos.'); return }
+    setSolic({
+      insumos: s.insumos,
+      contexto: `${s.codigo} · ${s.descricao}`,
+      destino: { tipo: 'obra', entrega_obra_id: obra_id, planilha_item_id: realId },
+      destinoLabel: s.descricao,
+    })
   }
 
   async function doExport(kind: 'pdf-consolidada' | 'pdf-cronograma' | 'csv') {
@@ -312,12 +349,30 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
         </div>
       ) : view === 'servico' ? (
         <div className="space-y-2.5">
+          {/* Espelhamento Plano → Custo Real (habilita a compra por serviço) */}
+          <div className="flex items-center justify-between gap-3 flex-wrap bg-[#0d0d0d] border border-white/[0.08] rounded-2xl px-5 py-3">
+            <div className="text-xs text-white/50 min-w-0">
+              <span className="text-white/70 font-medium">Custo Real</span> — {espelhados} de {servicos.length} serviço(s) espelhado(s).
+              <span className="text-white/30"> Espelhe para lançar cada compra no Custo Real do serviço.</span>
+            </div>
+            <Btn variant="primary" onClick={handleEspelhar} disabled={espelhando || !custoRealEditavel}>
+              {espelhando ? 'Espelhando…' : 'Espelhar plano no Custo Real'}
+            </Btn>
+          </div>
+          {!custoRealEditavel && (
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
+              Custo Real bloqueado. Aprove o Custo Planejado (aba <span className="font-medium">Custo Planejado</span>) para liberar o espelhamento e a compra por serviço.
+            </div>
+          )}
+
           {servicos.map(s => (
             <ServicoRow
               key={s.item_id}
               servico={s}
               open={!!expanded[s.item_id]}
               onToggle={() => setExpanded(p => ({ ...p, [s.item_id]: !p[s.item_id] }))}
+              onGerar={() => gerarCompraServico(s)}
+              podeGerar={!!realMap[s.item_id]}
             />
           ))}
           {semComposicao.length > 0 && (
@@ -453,6 +508,8 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
           contexto={solic.contexto}
           insumos={solic.insumos}
           dataNecessariaDefault={solic.data}
+          destino={solic.destino}
+          destinoLabel={solic.destinoLabel}
           onClose={() => setSolic(null)}
           onDone={() => setSolic(null)}
         />
@@ -464,20 +521,37 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
 // ── Linha expansível da visão "Por serviço" ──────────────────────────────────
 
 function ServicoRow({
-  servico, open, onToggle,
-}: { servico: ServicoExplodido; open: boolean; onToggle: () => void }) {
+  servico, open, onToggle, onGerar, podeGerar,
+}: {
+  servico: ServicoExplodido
+  open: boolean
+  onToggle: () => void
+  onGerar?: () => void
+  podeGerar?: boolean
+}) {
   return (
     <div className="bg-[#0d0d0d] border border-white/[0.08] rounded-2xl overflow-hidden">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/[0.02] transition-colors text-left"
-      >
-        <span className="text-white/30 text-xs w-4">{open ? '▼' : '▶'}</span>
-        <span className="font-mono text-xs text-white/40 w-20 shrink-0">{servico.codigo}</span>
-        <span className="text-sm text-white/80 flex-1 truncate">{servico.descricao}</span>
-        <span className="text-xs text-white/40 font-mono whitespace-nowrap">{fmtQty(servico.quantidade)} {servico.unidade}</span>
+      <div className="flex items-center gap-3 px-5 py-3">
+        <button
+          onClick={onToggle}
+          className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-90 transition-opacity text-left"
+        >
+          <span className="text-white/30 text-xs w-4">{open ? '▼' : '▶'}</span>
+          <span className="font-mono text-xs text-white/40 w-20 shrink-0">{servico.codigo}</span>
+          <span className="text-sm text-white/80 flex-1 truncate">{servico.descricao}</span>
+          <span className="text-xs text-white/40 font-mono whitespace-nowrap">{fmtQty(servico.quantidade)} {servico.unidade}</span>
+        </button>
         <span className="text-sm font-mono font-semibold text-green-400 w-28 text-right">{fmtCurrency(servico.total)}</span>
-      </button>
+        {onGerar && servico.insumos.length > 0 && (
+          <Btn
+            onClick={onGerar}
+            disabled={!podeGerar}
+            title={podeGerar ? 'Gerar compra lançando no Custo Real deste serviço' : 'Espelhe o plano no Custo Real primeiro'}
+          >
+            Gerar compra
+          </Btn>
+        )}
+      </div>
       {open && (
         servico.insumos.length > 0
           ? <div className="border-t border-white/[0.06]"><InsumoTable insumos={servico.insumos} /></div>

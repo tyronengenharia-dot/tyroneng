@@ -35,6 +35,10 @@ export type ListaComprasData = {
   etapaLinkDisponivel: boolean
   /** planilha-fonte editável? (Custo Planejado em rascunho). false = aprovado/travado */
   sourceEditavel: boolean
+  /** map: id do item do Custo Planejado → id do item espelhado no Custo Real */
+  realItemPorPlanejado: Record<string, string>
+  /** Custo Real liberado (editável)? necessário para espelhar e rotear compra p/ obra */
+  custoRealEditavel: boolean
 }
 
 type ItemRow = {
@@ -92,6 +96,7 @@ export async function getListaCompras(
     return {
       servicos: [], consolidado: [], semComposicao: [],
       etapas: [], leadDias: 0, etapaLinkDisponivel, sourceEditavel: true,
+      realItemPorPlanejado: {}, custoRealEditavel: false,
     }
   }
   itemRows = (res.data ?? []) as unknown as ItemRow[]
@@ -152,21 +157,37 @@ export async function getListaCompras(
     }
   }
 
-  // 4. Etapas + lead time da obra + estado da planilha-fonte.
-  const [etapas, leadDias, headers] = await Promise.all([
+  // 4. Etapas + lead time + estado das planilhas + itens espelhados no Custo Real.
+  const [etapas, leadDias, headers, realRows] = await Promise.all([
     getEtapasByObra(obra_id),
     getLeadDias(obra_id),
     getPlanilhasStatus(obra_id),
+    supabase
+      .from('planilha_itens')
+      .select('id, origem_custo_item_id')
+      .eq('obra_id', obra_id)
+      .eq('tipo', 'custo_real'),
   ])
   const header = headers.find(h => h.tipo === tipo)
   // Sem status (migração de estado não aplicada) => modo legado, editável.
   const sourceEditavel = header ? planilhaEditavel(tipo, header.status) : true
+  const realHeader = headers.find(h => h.tipo === 'custo_real')
+  const custoRealEditavel = realHeader ? planilhaEditavel('custo_real', realHeader.status) : true
+
+  // Vínculo item planejado → item espelhado no Custo Real (rota "obra" da compra).
+  const realItemPorPlanejado: Record<string, string> = {}
+  for (const r of (realRows.data ?? []) as { id: string; origem_custo_item_id: string | null }[]) {
+    if (r.origem_custo_item_id) realItemPorPlanejado[r.origem_custo_item_id] = r.id
+  }
 
   // 5. Explode e consolida.
   const servicos = explodirTodos(itensServico, composicoes)
   const consolidado = consolidarInsumos(servicos)
 
-  return { servicos, consolidado, semComposicao, etapas, leadDias, etapaLinkDisponivel, sourceEditavel }
+  return {
+    servicos, consolidado, semComposicao, etapas, leadDias,
+    etapaLinkDisponivel, sourceEditavel, realItemPorPlanejado, custoRealEditavel,
+  }
 }
 
 // ── Persistência: vínculo item → etapa e lead time da obra ───────────────────

@@ -26,6 +26,13 @@ export type SolicitacaoInsumoInput = {
   quantidade: number
 }
 
+// Destino da entrega. 'deposito' (padrão) atualiza estoque/preço central.
+// 'obra' + planilha_item_id lança o gasto como pagamento de Custo Real do item
+// (rota A da mig 0012). Ver espelharPlanejadoNoCustoReal para obter o item real.
+export type DestinoCompra =
+  | { tipo: 'deposito' }
+  | { tipo: 'obra'; entrega_obra_id: string; planilha_item_id: string }
+
 function isMissingColumn(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false
   const msg = (error.message || '').toLowerCase()
@@ -33,7 +40,8 @@ function isMissingColumn(error: { code?: string; message?: string } | null): boo
     error.code === '42703' ||
     error.code === 'PGRST204' ||
     (msg.includes('column') &&
-      (msg.includes('insumo_id') || msg.includes('entrega_tipo') || msg.includes('entrega_obra_id')))
+      (msg.includes('insumo_id') || msg.includes('entrega_tipo') ||
+        msg.includes('entrega_obra_id') || msg.includes('planilha_item_id')))
   )
 }
 
@@ -68,8 +76,10 @@ export async function createSolicitacoesFromInsumos(opts: {
   data_necessaria: string
   observacoes?: string
   insumos: SolicitacaoInsumoInput[]
+  destino?: DestinoCompra
 }): Promise<{ criadas: number; degradado: boolean; error: string | null }> {
   if (opts.insumos.length === 0) return { criadas: 0, degradado: false, error: 'Nenhum insumo selecionado.' }
+  const destino: DestinoCompra = opts.destino ?? { tipo: 'deposito' }
 
   const baseRows = opts.insumos.map(i => ({
     obra_id: opts.obra_id || null,
@@ -85,12 +95,17 @@ export async function createSolicitacoesFromInsumos(opts: {
     observacoes: opts.observacoes || null,
   }))
 
-  // Camada completa: vínculo com o catálogo + destino depósito (fecha o ciclo
-  // preço/estoque na entrega).
+  // Camada completa: vínculo com o catálogo + destino.
+  //  - depósito: fecha o ciclo preço/estoque na entrega (mig 0011).
+  //  - obra: lança o gasto no item de Custo Real (planilha_item_id) na entrega
+  //    (rota A da mig 0012).
   const fullRows = baseRows.map((r, idx) => ({
     ...r,
     insumo_id: opts.insumos[idx].insumo_id,
-    entrega_tipo: 'deposito' as const,
+    entrega_tipo: destino.tipo,
+    ...(destino.tipo === 'obra'
+      ? { entrega_obra_id: destino.entrega_obra_id, planilha_item_id: destino.planilha_item_id }
+      : {}),
   }))
 
   let degradado = false
