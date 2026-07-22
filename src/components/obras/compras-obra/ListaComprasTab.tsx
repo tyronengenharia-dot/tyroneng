@@ -19,8 +19,9 @@ import {
   type ServicoExplodido,
 } from '@/lib/listaCompras'
 import { exportListaComprasPdf, exportListaComprasCsv } from '@/lib/exportListaComprasPdf'
+import { GerarSolicitacaoModal } from './GerarSolicitacaoModal'
 import { InsumoTipo } from '@/types/insumo'
-import { KpiCard, LoadingSpinner, EmptyState } from '@/components/ui'
+import { KpiCard, LoadingSpinner, EmptyState, Btn } from '@/components/ui'
 import { fmtCurrency, fmtDate, cn } from '@/lib/utils'
 
 // Lista de Compras da obra: explode os serviços do Custo Real nos seus insumos
@@ -103,6 +104,8 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
   const [exportOpen, setExportOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [obraName, setObraName] = useState('Obra')
+  const [solic, setSolic] = useState<{ insumos: LinhaInsumo[]; data?: string; contexto: string } | null>(null)
 
   const load = useCallback(async () => {
     const d = await getListaCompras(obra_id)
@@ -112,10 +115,11 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
 
   useEffect(() => {
     let active = true
-    getListaCompras(obra_id).then(d => {
+    Promise.all([getListaCompras(obra_id), getObraById(obra_id)]).then(([d, obra]) => {
       if (!active) return
       setData(d)
       setLead(d.leadDias)
+      if (obra?.name) setObraName(obra.name)
       setLoading(false)
     })
     return () => { active = false }
@@ -204,6 +208,14 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
           ))}
         </div>
 
+        <div className="flex items-center gap-2">
+        <Btn
+          variant="primary"
+          onClick={() => setSolic({ insumos: consolidado, contexto: 'Lista consolidada' })}
+          disabled={consolidado.length === 0}
+        >
+          Gerar solicitação
+        </Btn>
         <div className="relative">
           <button
             onClick={() => setExportOpen(o => !o)}
@@ -233,6 +245,7 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
               </div>
             </>
           )}
+        </div>
         </div>
       </div>
 
@@ -353,7 +366,22 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
               sub={g.etapa
                 ? `início ${fmtDate(g.etapa.data_inicio)} · ${g.etapa.duracao_dias}d · ${g.servicos.length} serviço(s)`
                 : `${g.servicos.length} serviço(s) — vincule a uma etapa abaixo`}
-              right={<span className="font-mono text-sm font-semibold text-green-400">{fmtCurrency(g.total)}</span>}
+              right={
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-sm font-semibold text-green-400">{fmtCurrency(g.total)}</span>
+                  {g.insumos.length > 0 && (
+                    <Btn
+                      onClick={() => setSolic({
+                        insumos: g.insumos,
+                        data: g.comprarAte ?? undefined,
+                        contexto: g.etapa ? `${g.etapa.ordem}. ${g.etapa.nome}` : 'Serviços sem etapa',
+                      })}
+                    >
+                      Gerar solicitação
+                    </Btn>
+                  )}
+                </div>
+              }
             >
               <InsumoTable insumos={g.insumos} />
             </SectionCard>
@@ -403,6 +431,18 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
             </SectionCard>
           )}
         </div>
+      )}
+
+      {solic && (
+        <GerarSolicitacaoModal
+          obra_id={obra_id}
+          obra_nome={obraName}
+          contexto={solic.contexto}
+          insumos={solic.insumos}
+          dataNecessariaDefault={solic.data}
+          onClose={() => setSolic(null)}
+          onDone={() => setSolic(null)}
+        />
       )}
     </div>
   )
