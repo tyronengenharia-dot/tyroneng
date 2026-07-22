@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabaseClient'
 import { PlanilhaTipo, Etapa } from '@/types'
 import { getEtapasByObra } from '@/services/etapaService'
+import { getPlanilhasStatus, planilhaEditavel } from '@/services/planilhaEstadoService'
 import {
   ComposicaoLinha,
   ItemServico,
@@ -12,9 +13,11 @@ import {
 } from '@/lib/listaCompras'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fonte de dados da Lista de Compras. Busca os itens da planilha (Custo Real por
-// padrão), a composição dos serviços envolvidos e as etapas do cronograma, e
-// devolve tudo já explodido/consolidado pela lib pura `@/lib/listaCompras`.
+// Fonte de dados da Lista de Compras. Nasce do CUSTO PLANEJADO da obra: primeiro
+// se planeja o que comprar (o plano), depois o gasto efetivo alimenta o Custo
+// Real. Busca os itens da planilha, a composição dos serviços envolvidos e as
+// etapas do cronograma, e devolve tudo já explodido/consolidado pela lib pura
+// `@/lib/listaCompras`.
 //
 // A coluna planilha_itens.etapa_id e obras.compra_lead_dias chegam na migração
 // 0015. Enquanto ela não é aplicada, degradamos com elegância: a visão por
@@ -30,6 +33,8 @@ export type ListaComprasData = {
   leadDias: number
   /** false = migração 0015 ainda não aplicada (sem coluna etapa_id) */
   etapaLinkDisponivel: boolean
+  /** planilha-fonte editável? (Custo Planejado em rascunho). false = aprovado/travado */
+  sourceEditavel: boolean
 }
 
 type ItemRow = {
@@ -63,7 +68,7 @@ function isMissingColumn(
 
 export async function getListaCompras(
   obra_id: string,
-  tipo: PlanilhaTipo = 'custo_real',
+  tipo: PlanilhaTipo = 'custo_planejado',
 ): Promise<ListaComprasData> {
   // 1. Itens da planilha (tenta com etapa_id; cai p/ sem etapa_id pré-0015).
   let etapaLinkDisponivel = true
@@ -86,7 +91,7 @@ export async function getListaCompras(
     console.error('getListaCompras itens error:', res.error)
     return {
       servicos: [], consolidado: [], semComposicao: [],
-      etapas: [], leadDias: 0, etapaLinkDisponivel,
+      etapas: [], leadDias: 0, etapaLinkDisponivel, sourceEditavel: true,
     }
   }
   itemRows = (res.data ?? []) as unknown as ItemRow[]
@@ -147,17 +152,21 @@ export async function getListaCompras(
     }
   }
 
-  // 4. Etapas + lead time da obra.
-  const [etapas, leadDias] = await Promise.all([
+  // 4. Etapas + lead time da obra + estado da planilha-fonte.
+  const [etapas, leadDias, headers] = await Promise.all([
     getEtapasByObra(obra_id),
     getLeadDias(obra_id),
+    getPlanilhasStatus(obra_id),
   ])
+  const header = headers.find(h => h.tipo === tipo)
+  // Sem status (migração de estado não aplicada) => modo legado, editável.
+  const sourceEditavel = header ? planilhaEditavel(tipo, header.status) : true
 
   // 5. Explode e consolida.
   const servicos = explodirTodos(itensServico, composicoes)
   const consolidado = consolidarInsumos(servicos)
 
-  return { servicos, consolidado, semComposicao, etapas, leadDias, etapaLinkDisponivel }
+  return { servicos, consolidado, semComposicao, etapas, leadDias, etapaLinkDisponivel, sourceEditavel }
 }
 
 // ── Persistência: vínculo item → etapa e lead time da obra ───────────────────
@@ -208,9 +217,9 @@ export async function setItemEtapa(
     if (isMissingColumn(error, 'etapa_id')) {
       return { error: 'Aplique a migração 0015 para vincular serviços ao cronograma.' }
     }
-    // Trava de edição (Regra 1): Custo Real bloqueado até aprovar o Custo Planejado.
+    // Trava de edição (Regra 1): Custo Planejado aprovado fica somente-leitura.
     if (error.code === '23514' || /bloqueada/i.test(error.message || '')) {
-      return { error: 'Custo Real bloqueado. Aprove o Custo Planejado para editar.' }
+      return { error: 'Custo Planejado aprovado (travado). Reabra o Custo Planejado para reprogramar as compras.' }
     }
     console.error('setItemEtapa error:', error)
     return { error: 'Não foi possível vincular o serviço à etapa.' }

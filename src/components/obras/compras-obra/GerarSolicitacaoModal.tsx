@@ -174,9 +174,10 @@ export function GerarSolicitacaoModal({
       </div>
 
       <p className="text-[11px] text-white/30">
-        As solicitações entram no módulo de <span className="font-medium text-white/50">Compras</span> como
-        pendentes, com destino ao depósito. Ao confirmar a entrega, o estoque e o preço de referência do insumo
-        são atualizados — o custo de cada serviço permanece no Custo Real.
+        Isto é o planejamento da compra (base: Custo Planejado). As solicitações entram no módulo de{' '}
+        <span className="font-medium text-white/50">Compras</span> como pendentes, com destino ao depósito. Ao
+        confirmar a entrega, o estoque e o preço de referência do insumo são atualizados; o gasto efetivo é
+        conciliado no Custo Real da obra.
       </p>
     </Modal>
   )

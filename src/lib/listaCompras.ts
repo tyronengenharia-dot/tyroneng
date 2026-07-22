@@ -4,8 +4,9 @@ import { Etapa } from '@/types'
 // ─────────────────────────────────────────────────────────────────────────────
 // Lista de Compras da obra — núcleo de cálculo (funções puras, sem I/O).
 //
-// A planilha de Custo Real é composta por SERVIÇOS. Cada serviço é uma
-// composição de insumos (material / mão de obra / equipamento) com um
+// A base é o CUSTO PLANEJADO da obra (planeja-se primeiro o que comprar; o gasto
+// efetivo alimenta o Custo Real depois). A planilha é composta por SERVIÇOS. Cada
+// serviço é uma composição de insumos (material / mão de obra / equipamento) com um
 // coeficiente de consumo por unidade do serviço (servico_insumos.coeficiente).
 // A "lista de compras" nasce de explodir cada serviço nos seus insumos:
 //

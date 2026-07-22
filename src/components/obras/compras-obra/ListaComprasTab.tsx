@@ -24,9 +24,10 @@ import { InsumoTipo } from '@/types/insumo'
 import { KpiCard, LoadingSpinner, EmptyState, Btn } from '@/components/ui'
 import { fmtCurrency, fmtDate, cn } from '@/lib/utils'
 
-// Lista de Compras da obra: explode os serviços do Custo Real nos seus insumos
-// (material / mão de obra / equipamento) e organiza como lista de compra —
-// consolidada, por serviço e pela data do cronograma. Ver @/lib/listaCompras.
+// Lista de Compras da obra: explode os serviços do Custo Planejado nos seus
+// insumos (material / mão de obra / equipamento) e organiza como lista de compra —
+// consolidada, por serviço e pela data do cronograma. É a BASE do que comprar
+// (planejar primeiro); o gasto efetivo alimenta o Custo Real. Ver @/lib/listaCompras.
 
 type View = 'consolidada' | 'servico' | 'cronograma'
 
@@ -137,6 +138,7 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
     [servicos, etapas, lead],
   )
   const semEtapaCount = servicos.filter(s => !s.etapa_id || !etapas.some(e => e.id === s.etapa_id)).length
+  const sourceEditavel = data?.sourceEditavel ?? true
 
   async function handleAssign(item_id: string, etapa_id: string) {
     setData(prev => prev && {
@@ -249,6 +251,10 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
         </div>
       </div>
 
+      <p className="text-[11px] text-white/30 -mt-1">
+        Base: <span className="text-white/50">Custo Planejado</span> da obra — o que comprar. O gasto efetivo alimenta o Custo Real.
+      </p>
+
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="Materiais" value={fmtCurrency(tot.material)} variant="neutral" />
@@ -259,7 +265,7 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
       </div>
 
       {vazio ? (
-        <EmptyState message="Nenhum serviço no Custo Real. Adicione serviços na planilha de Custo Real para gerar a lista de compras." />
+        <EmptyState message="Nenhum serviço no Custo Planejado. Monte o Custo Planejado da obra para gerar a lista de compras." />
       ) : view === 'consolidada' ? (
         <div className="space-y-4">
           {agruparPorTipo(consolidado).map(g => (
@@ -326,6 +332,12 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
           {!data?.etapaLinkDisponivel && (
             <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
               Aplique a migração <span className="font-mono">0015</span> para vincular serviços ao cronograma e usar a antecedência de compra.
+            </div>
+          )}
+
+          {data?.etapaLinkDisponivel && !sourceEditavel && (
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
+              Custo Planejado aprovado (travado). Reabra o Custo Planejado para reprogramar o vínculo dos serviços com o cronograma.
             </div>
           )}
 
@@ -415,7 +427,8 @@ export function ListaComprasTab({ obra_id }: { obra_id: string }) {
                           <select
                             value={s.etapa_id && etapas.some(e => e.id === s.etapa_id) ? s.etapa_id : ''}
                             onChange={e => handleAssign(s.item_id, e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white/80 cursor-pointer focus:outline-none focus:border-white/30"
+                            disabled={!sourceEditavel}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white/80 cursor-pointer focus:outline-none focus:border-white/30 disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <option value="" className="bg-[#111]">— Sem etapa —</option>
                             {etapas.map(e => (

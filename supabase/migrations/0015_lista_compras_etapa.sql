@@ -1,11 +1,12 @@
 -- =============================================================================
 -- 0015 — Lista de Compras da obra (quantitativo de insumos por cronograma)
 --
--- A "Lista de Compras" explode cada serviço do Custo Real nos seus insumos
+-- A "Lista de Compras" explode cada serviço do Custo Planejado nos seus insumos
 -- (material / mão de obra / equipamento) via servico_insumos:
 --     qtd do insumo = qtd do serviço × coeficiente.
--- As visões "Por serviço" e "Consolidada" já saem só do que existe hoje
--- (planilha_itens.servico_id → servico_insumos → insumos). Esta migração
+-- É a BASE do que comprar (planeja-se primeiro; o gasto efetivo alimenta o Custo
+-- Real depois). As visões "Por serviço" e "Consolidada" já saem só do que existe
+-- hoje (planilha_itens.servico_id → servico_insumos → insumos). Esta migração
 -- adiciona o que falta para a visão "Por cronograma":
 --
 --   1. planilha_itens.etapa_id  → liga cada serviço a uma etapa do Planejamento.
