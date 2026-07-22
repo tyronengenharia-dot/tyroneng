@@ -24,6 +24,8 @@ export type Obra = {
   end_date?: string
   description?: string
   contrato?: ObraContrato
+  /** Antecedência de compra em dias (lead time). Usado pela Lista de Compras. (mig 0015) */
+  compra_lead_dias?: number
   created_at?: string
 }
 
@@ -203,6 +205,8 @@ export type PlanilhaItem = {
   origem?: 'servico' | 'sinapi' | 'emop' | null
   servico_id?: string | null
   referencia_item_id?: string | null
+  /** Etapa do cronograma a que este serviço pertence (Lista de Compras). (mig 0015) */
+  etapa_id?: string | null
   // Vínculo Venda → Custo: item da venda re-precificado a partir deste do custo.
   origem_custo_item_id?: string | null
   created_at?: string
