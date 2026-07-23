@@ -50,6 +50,13 @@ export type ComposicaoLinha = {
   }
 }
 
+/** Linha crua da composição: insumo-folha OU referência a um subserviço (mig 0017). */
+export type ComposicaoRaw = {
+  coeficiente: number
+  insumo: ComposicaoLinha['insumo'] | null
+  subservico_id: string | null
+}
+
 /** Um item de serviço da planilha (o mínimo que a explosão precisa). */
 export type ItemServico = {
   id: string
@@ -99,27 +106,65 @@ export type GrupoEtapa = {
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
 
+// ── Achatamento recursivo (serviço dentro de serviço) ────────────────────────
+
+/**
+ * Achata a composição de um serviço até os insumos-folha, descendo pelos
+ * subserviços e multiplicando os coeficientes ao longo do caminho. Protegido
+ * contra ciclos (conjunto de visitados) e com limite de profundidade.
+ */
+export function achatarComposicao(
+  servicoId: string,
+  grafo: Map<string, ComposicaoRaw[]>,
+  multiplicador = 1,
+  visitados: Set<string> = new Set(),
+  profundidade = 0,
+): ComposicaoLinha[] {
+  if (visitados.has(servicoId) || profundidade > 30) return []
+  const comps = grafo.get(servicoId) ?? []
+  const visitadosNext = new Set(visitados).add(servicoId)
+  const out: ComposicaoLinha[] = []
+  for (const c of comps) {
+    const coef = multiplicador * (c.coeficiente || 0)
+    if (c.insumo) {
+      out.push({ coeficiente: coef, insumo: c.insumo })
+    } else if (c.subservico_id) {
+      out.push(...achatarComposicao(c.subservico_id, grafo, coef, visitadosNext, profundidade + 1))
+    }
+  }
+  return out
+}
+
 // ── Explosão ─────────────────────────────────────────────────────────────────
 
-/** Explode um único item de serviço nos seus insumos usando a composição. */
+/** Explode um item de serviço nos seus insumos (composição já achatada em
+ *  folhas). Insumos repetidos (via subserviços diferentes) são somados. */
 export function explodirServico(
   item: ItemServico,
   composicao: ComposicaoLinha[],
 ): ServicoExplodido {
-  const insumos: LinhaInsumo[] = composicao.map(c => {
+  const mapa = new Map<string, LinhaInsumo>()
+  for (const c of composicao) {
     const quantidade = round2((item.quantidade || 0) * (c.coeficiente || 0))
     const total = round2(quantidade * (c.insumo.valor_unitario || 0))
-    return {
-      insumo_id: c.insumo.id,
-      codigo: c.insumo.codigo,
-      descricao: c.insumo.descricao,
-      tipo: c.insumo.tipo,
-      unidade: c.insumo.unidade,
-      valor_unitario: c.insumo.valor_unitario || 0,
-      quantidade,
-      total,
+    const ex = mapa.get(c.insumo.id)
+    if (ex) {
+      ex.quantidade = round2(ex.quantidade + quantidade)
+      ex.total = round2(ex.total + total)
+    } else {
+      mapa.set(c.insumo.id, {
+        insumo_id: c.insumo.id,
+        codigo: c.insumo.codigo,
+        descricao: c.insumo.descricao,
+        tipo: c.insumo.tipo,
+        unidade: c.insumo.unidade,
+        valor_unitario: c.insumo.valor_unitario || 0,
+        quantidade,
+        total,
+      })
     }
-  })
+  }
+  const insumos = [...mapa.values()]
   return {
     item_id: item.id,
     categoria_id: item.categoria_id,

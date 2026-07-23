@@ -19,10 +19,21 @@ export type ServicoComCusto = Servico & {
   custo_unitario: number
 }
 
-// Linha da composição (servico_insumos), com o insumo embutido para exibição.
+// Serviço embutido como componente (subserviço) de outro serviço.
+export type SubservicoRef = {
+  id: string
+  codigo: string
+  descricao: string
+  unidade: string
+}
+
+// Linha da composição (servico_insumos). Cada linha é UM insumo OU UM subserviço
+// (mig 0017), com o objeto embutido para exibição.
 export type ComposicaoItem = {
   id?: string
-  insumo_id: string
   coeficiente: number
-  insumo?: Insumo
+  insumo_id?: string | null
+  insumo?: Insumo | null
+  subservico_id?: string | null
+  subservico?: SubservicoRef | null
 }

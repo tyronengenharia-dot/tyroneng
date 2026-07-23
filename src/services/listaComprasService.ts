@@ -4,10 +4,12 @@ import { getEtapasByObra } from '@/services/etapaService'
 import { getPlanilhasStatus, planilhaEditavel } from '@/services/planilhaEstadoService'
 import {
   ComposicaoLinha,
+  ComposicaoRaw,
   ItemServico,
   ItemSemComposicao,
   LinhaInsumo,
   ServicoExplodido,
+  achatarComposicao,
   explodirTodos,
   consolidarInsumos,
 } from '@/lib/listaCompras'
@@ -132,28 +134,36 @@ export async function getListaCompras(
     }
   }
 
-  // 3. Composição dos serviços envolvidos (uma consulta, insumo embutido).
+  // 3. Grafo de composição (insumos + subserviços) e achatamento recursivo até
+  //    os insumos-folha de cada serviço da planilha (serviço dentro de serviço).
   const servicoIds = [...new Set(itensServico.map(i => i.servico_id))]
   const composicoes = new Map<string, ComposicaoLinha[]>()
   if (servicoIds.length > 0) {
-    const { data, error } = await supabase
-      .from('servico_insumos')
-      .select('servico_id, coeficiente, insumo:insumos(id, codigo, descricao, tipo, unidade, valor_unitario)')
-      .in('servico_id', servicoIds)
-
-    if (error) {
-      console.error('getListaCompras composicao error:', error)
+    const COMP_COLS = 'servico_id, coeficiente, insumo:insumos(id, codigo, descricao, tipo, unidade, valor_unitario)'
+    // Todo o grafo — subserviços podem apontar p/ serviços fora de servicoIds.
+    let cres = await supabase.from('servico_insumos').select(`${COMP_COLS}, subservico_id`)
+    if (cres.error && isMissingColumn(cres.error, 'subservico_id')) {
+      cres = await supabase.from('servico_insumos').select(COMP_COLS) // pré-0017: só insumos
+    }
+    if (cres.error) {
+      console.error('getListaCompras composicao error:', cres.error)
     } else {
-      for (const row of (data ?? []) as unknown as {
+      const grafo = new Map<string, ComposicaoRaw[]>()
+      for (const row of (cres.data ?? []) as unknown as {
         servico_id: string
         coeficiente: number
         insumo: ComposicaoLinha['insumo'] | null
+        subservico_id?: string | null
       }[]) {
-        if (!row.insumo) continue
-        const arr = composicoes.get(row.servico_id) ?? []
-        arr.push({ coeficiente: Number(row.coeficiente) || 0, insumo: row.insumo })
-        composicoes.set(row.servico_id, arr)
+        const arr = grafo.get(row.servico_id) ?? []
+        arr.push({
+          coeficiente: Number(row.coeficiente) || 0,
+          insumo: row.insumo ?? null,
+          subservico_id: row.subservico_id ?? null,
+        })
+        grafo.set(row.servico_id, arr)
       }
+      for (const sid of servicoIds) composicoes.set(sid, achatarComposicao(sid, grafo))
     }
   }
 
